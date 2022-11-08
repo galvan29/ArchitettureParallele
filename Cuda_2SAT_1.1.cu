@@ -49,7 +49,7 @@ __global__ void prova(int *d_adjMatrix, int len, int size, int *out){
   */
 
   // 1 TRUE  ---   -1 FALSE   --- 0 neutro
-  out[1] = 1;
+  out[1] = -1;
   if(thid == 0)
   {
       printf("Valore %d \n", out[1]);
