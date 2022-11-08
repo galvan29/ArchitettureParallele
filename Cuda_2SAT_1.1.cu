@@ -26,11 +26,11 @@ if(!CHECK[thidI] && *out){
 #include <unistd.h>
 using namespace std;
 
-__global__ void prova(int *d_adjMatrix, int len, int size, bool *out){
+__global__ void prova(int *d_adjMatrix, int len, int size, int *out){
   int thid = blockIdx.x * blockDim.x + threadIdx.x;
   /* if(thid==0){
     printf("%p %p",d_adjMatrix, d_adjMatrix[0]);
-  } */
+  } 
   if(thid < len && thid != 0)
   {
     int i = 0;
@@ -46,6 +46,16 @@ __global__ void prova(int *d_adjMatrix, int len, int size, bool *out){
     for(int i = 0; i< len*size; i++){
       printf("%d in posizione %d\n",d_adjMatrix[i], i);
     }
+  */
+
+  // 1 TRUE  ---   -1 FALSE   --- 0 neutro
+  out[1] = 1;
+  if(thid == 0)
+  {
+      printf("Valore %d \n", out[1]);
+    printf("Valore %d \n", out[12]);
+  }
+
   __syncthreads();
 }
 
@@ -206,11 +216,11 @@ int main(void)
   cudaMalloc(&d_adjMatrix, nTotLet*size*sizeof(int));
   cudaMemcpy(d_adjMatrix, adjMatrix, nTotLet*size*sizeof(int), cudaMemcpyHostToDevice);
   //sleep(1);
-  bool out[nTotLet];
-  bool *d_out;
-  cudaMalloc(&d_out, nTotLet*sizeof(bool));
+  int out[nTotLet];
+  int *d_out;
+  cudaMalloc(&d_out, nTotLet*sizeof(int));
   prova<<<2, 32>>>(d_adjMatrix, nTotLet, size, d_out);
-  cudaMemcpy(&out, d_out, sizeof(bool), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&out, d_out, sizeof(int), cudaMemcpyDeviceToHost);
   
   
   
