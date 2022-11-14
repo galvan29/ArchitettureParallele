@@ -6,9 +6,8 @@
 #include <numeric> 
 #include <cuda.h>
 #include <omp.h>
-#include <malloc.h>
-#include "BigInt.hpp"
-
+#pragma comment(linker, "/STACK:200000000")
+#pragma comment(linker, "/HEAP:200000000")
 using namespace std;
 
 void funcRead(string str[]){
@@ -117,16 +116,6 @@ __global__ void checkDiagonale(bool *matrix, int length){
   __syncthreads();  
 }
 
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess) 
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
-}
-
 int main(void)
 { 
   string s = firstLine();
@@ -142,10 +131,8 @@ int main(void)
   int letterali = stoi(arrayyy[2]);
   int vincoli = stoi(arrayyy[3]);
   int nTotLet = (letterali*2);
-  BigInt big1 = nTotLet;
-  big1 = big1 * big1;
-  long int nTotLetx2 = big1.to_long();
-  bool matrix[big1.to_long()];
+  int nTotLetx2 = nTotLet*nTotLet;
+  bool matrix[nTotLetx2] = {0};
   string str[vincoli+1];
   funcRead(str);
   
@@ -183,11 +170,9 @@ int main(void)
   bool *d_matrix;
   bool *d_matrix2;
   bool *d_matrix3;
-
-  gpuErrchk(cudaMalloc(&d_matrix, nTotLetx2*sizeof(bool)));
-  gpuErrchk(cudaMalloc(&d_matrix2, nTotLetx2*sizeof(bool)));
-  gpuErrchk(cudaMalloc(&d_matrix3, nTotLetx2*sizeof(bool)));
-
+  cudaMalloc(&d_matrix, nTotLetx2*sizeof(bool));
+  cudaMalloc(&d_matrix2, nTotLetx2*sizeof(bool));
+  cudaMalloc(&d_matrix3, nTotLetx2*sizeof(bool));
   cudaDeviceSynchronize();
   cudaMemcpy(d_matrix, matrix, nTotLetx2*sizeof(bool), cudaMemcpyHostToDevice);
   cudaMemcpy(d_matrix3, matrix, nTotLetx2*sizeof(bool), cudaMemcpyHostToDevice);
@@ -197,20 +182,18 @@ int main(void)
   //cudaMalloc(&d_out, nTotLetx2*sizeof(bool));
   prova<<<40, 1024>>>(d_matrix, nTotLet, d_matrix2, d_matrix3);
   cudaDeviceSynchronize();
-  cudaFree(d_matrix);
-  cudaFree(d_matrix2);
   checkDiagonale<<<40, 1024>>>(d_matrix3, nTotLet);
   cudaDeviceSynchronize();
   cudaMemcpy(&matrix, d_matrix3, nTotLetx2*sizeof(bool), cudaMemcpyDeviceToHost);
   //cudaMemcpy(&out, d_out, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
   
-  /*for(int i=0; i<nTotLetx2; i++){
+  for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
   }
   cout<<endl;
-  //}*/
+  //}
 
   return 0;
 }
