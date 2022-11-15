@@ -114,7 +114,7 @@ __global__ void checkDiagonale(bool *matrix, int length){
   __syncthreads();  
 }
 
-__global__ void daVisitare(bool *matrix, bool *d_daVis, int length, int index){ //length è nLet tutto per due
+__global__ void daVisitare(bool *matrix, int *d_daVis, int length, int index){ //length è nLet tutto per due
   int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
   int thid = 0;
 
@@ -123,7 +123,22 @@ __global__ void daVisitare(bool *matrix, bool *d_daVis, int length, int index){ 
 
     if(thid < (length/2)){
       if(matrix[thid+index*(length/2)])
-        d_daVis[thid] = 1;
+        d_daVis[thid] = thid+index*(length/2);
+    }
+  }
+  __syncthreads();
+}
+
+__global__ void sistemaArray(int *d_daVis, int *d_temp, int length){ //length è nLet tutto per due
+  int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
+  int thid = 0;
+
+  for(int Pass=0; Pass<ceilf(((length/2)/(blockDim.x*gridDim.x)))+1; Pass++){
+    thid = thid2 + Pass*(gridDim.x*blockDim.x);
+
+    if(thid < length){
+      if(d_temp[thid] != 0)
+        d_daVis[thid] = d_temp[thid];
     }
   }
   __syncthreads();
@@ -134,6 +149,16 @@ bool checkBoolArray(bool *daVis, int length){
   while(i < length){
     if(daVis[i])
       return true;
+    i++;
+  }
+
+  int j = 0;
+  int Posto = 0;
+  while(Posto < length){
+    if(daVis[Posto] != 0){
+      daVis[j] = daVis[Posto];
+      j++;
+    }
     i++;
   }
   return false;
@@ -165,26 +190,34 @@ __global__ void completaSol(int *d_sol, int length){
   __syncthreads();
 }
 
-__global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, int length, int *posizione){
+__global__ void workVisit(bool *matrix, int *d_sol, int *d_daVis, int index, int length, int *posizione, int *d_temp){
   int valore = d_sol[index];
-  d_daVis[index] = false;
+  d_daVis[index] = 0;
   int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
   int thid = 0;
 
   for(int Pass=0; Pass<ceilf((length/(blockDim.x*gridDim.x)))+1; Pass++){
     thid = thid2 + Pass*(gridDim.x*blockDim.x);
     //thid = thid + (index*length);
-    if(thid < length && matrix[thid]){
-      if(d_sol[thid2] == 0 && valore == -1){
-        d_daVis[thid2] = true;
-        d_sol[thid2] = 1;
-      }else if(d_sol[thid2] == 0 && valore == 1){
-        d_daVis[thid2] = true;
-        d_sol[thid2] = -1;  //capire cosa fare qua, dovrei diramare
-      }else if(d_sol[thid2] == ((-1)*valore)){
-        d_daVis[thid2] = true;
-      }else if(d_sol[thid2] == valore){
-        printf("Impossibile ottenere una soluzione\n");
+    if(thid < length && d_daVis[thid] != 0)
+    {  
+      //printf("Io sono %d\n", thid); // qua c'è qualcosa
+      if(d_sol[d_daVis[thid]] == 0 && valore == -1){
+        d_temp[thid] = d_daVis[thid];
+        d_sol[d_daVis[thid]] = 1;
+      }
+      else if(d_sol[d_daVis[thid]] == 0 && valore == 1)
+      {
+        d_temp[thid] = d_daVis[thid];
+        d_sol[d_daVis[thid]] = 0;  //capire cosa fare qua, dovrei diramare ? -1
+      }
+      else if(d_sol[d_daVis[thid]] == ((-1)*valore))
+      {
+        d_temp[thid] = d_daVis[thid];
+      }
+      else if(d_sol[d_daVis[thid]] == valore && valore == -1)
+      {
+        printf("Impossibile ottenere una soluzione grazie a %d\n", thid2);
         atomicAdd(posizione, 1); 
       }
     }
@@ -271,15 +304,21 @@ int main(void)
   int sol[nTotLet] = {0};
   int *d_sol;
   cudaMalloc(&d_sol, nTotLet*sizeof(int));
-  bool daVis[nTotLet];
-  bool *d_daVis;
-  cudaMalloc(&d_daVis, nTotLet*sizeof(bool));
+  int daVis[nTotLet] = {0};
+  int *d_daVis;
+  cudaMalloc(&d_daVis, nTotLet*sizeof(int));
   //cudaMemcpy(d_daVis, daVis, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
   int posizione = 0;
   int *d_posizione;
   cudaMalloc(&d_posizione, sizeof(int));
+
+  int temp[nTotLet] = {0};
   bool alreadyC = true;
+  int *d_temp;
+  cudaMalloc(&d_temp, nTotLet*sizeof(int));
   for(int i = 0; i< letterali; i++){
+    cudaMemcpy(d_temp, temp, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
+    cout<<i<<endl;
     if(!alreadyC){
       cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
       alreadyC = true;
@@ -288,13 +327,27 @@ int main(void)
       sol[i] = -1;
       sol[i+letterali] = 1;
       daVisitare<<<40, 1024>>>(d_matrix3, d_daVis, nTotLet, i);
-      cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(bool), cudaMemcpyDeviceToHost);
+      cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
+
+      int j = 0;
+      int Posto = 0;
+      while(Posto < nTotLet){
+        if(daVis[Posto] != 0){
+          daVis[j] = daVis[Posto];
+          j++;
+        }
+        i++;
+      }
+      cudaMemcpy(d_daVis, daVis, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
       cudaMemcpy(d_sol, sol, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
+
       int ind = 0;
-      while(ind < nTotLet && checkBoolArray(daVis, nTotLet)){
-        if(daVis[ind]){
-          workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, ind, nTotLet, d_posizione);  //posizione da cui sono partito e valore che possiede
+      while(ind < nTotLet && daVis[0] != 0){
+        if(daVis[ind] != 0){
+          workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, ind, nTotLet, d_posizione, d_temp);  //posizione da cui sono partito e valore che possiede
+          sistemaArray<<<40, 1024>>>(d_daVis, d_temp, nTotLet);
           cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(bool), cudaMemcpyDeviceToHost);
+
         }
         if(ind == nTotLet)
           ind = 0;
@@ -331,8 +384,13 @@ int main(void)
   cout<<endl;
 
   
-
+  cudaFree(d_temp);
   cudaFree(d_matrix3);
+  cudaFree(d_daVis);
+  cudaFree(d_sol);
+  free(temp);
+  free(matrix);
+  free(daVis);
   return 0;
 }
 

@@ -95,38 +95,110 @@ __global__ void prova(bool *d_matrix, int length, long int lengthx2, bool *d_mat
   }
   __syncthreads();
 }
+
 //LA DIAGONALE NON MI TORNA 
 __global__ void checkDiagonale(bool *matrix, int length){
-  int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
+  int thid = blockIdx.x * blockDim.x + threadIdx.x;
   int thidCheck1 = 0;
   int thidCheck2 = 0;
-  //printf("%d\n", thid2);
-  if(thid2%(length+1) == 0 && thid2 < (length*length)){
-    thidCheck1 = thid2;
-    thidCheck2 = (length+1)*(length/2) + thid2;
+  if(thid%(length+1) == 0 && thid < (length*length)){
+    thidCheck1 = thid;
+    thidCheck2 = (length+1)*(length/2) + thid;
     if(matrix[thidCheck1] == 1 && matrix[thidCheck1] == matrix[thidCheck2]){
       printf("Nella posizione %d e nella posizione %d hanno entrambi 1\n", thidCheck1, thidCheck2);
       printf("Quindi teoricamente non ci sono soluzioni\n\n");
     }
   }
-  if(thid2 == 0)
-   printf("Ho controllato la diagonale\n");
+  if(thid == 0)
+    printf("Ho controllato la diagonale\n");
   __syncthreads();  
 }
 
-__global__ void findSolution(bool *matrix, int *soluzione, int length, int bit){ //length è nLet tutto per due
-  //il bit sarà quello messo a vero (tipo -1)
-  int thid = blockIdx.x * blockDim.x + threadIdx.x;
-  int lengthDiv2 = length/2;
-  if(thid == 0){
-    if(bit < 0){
-      soluzione[abs(bit)+lengthDiv2-1] = 1;
-      soluzione[abs(bit)-1] = -1;
-    }else{
-      soluzione[bit-1] = 1;
-      soluzione[bit+lengthDiv2-1] = -1;
+__global__ void daVisitare(bool *matrix, bool *d_daVis, int length, int index, int *d_sol){ //length è nLet tutto per due
+  int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
+  int thid = 0;
+
+  for(int Pass=0; Pass<ceilf((length/(blockDim.x*gridDim.x)))+1; Pass++){
+    thid = thid2 + Pass*(gridDim.x*blockDim.x);
+
+    if(thid < length){
+      //printf("Sono %d di %d\n",thid, thid2);
+      if(matrix[thid+index*length]){
+        d_daVis[thid] = 1;
+        d_sol[thid] = 1;
+      }
     }
   }
+  __syncthreads();
+}
+
+bool checkBoolArray(bool *daVis, int length){
+  int i = 0;
+  while(i < length){
+    if(daVis[i])
+      return true;
+    i++;
+  }
+  return false;
+}
+
+__global__ void completaSol(int *d_sol, int length){
+  int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
+  int thid = 0;
+
+  for(int Pass=0; Pass<ceilf(((length/2)/(blockDim.x*gridDim.x)))+1; Pass++){
+    thid = thid2 + Pass*(gridDim.x*blockDim.x);
+    if(thid < (length/2)){
+      if(d_sol[thid] == 0 && d_sol[thid+(length/2)] != 0){
+        if(d_sol[thid+(length/2)] == 1){
+          d_sol[thid] = -1;
+        }else if(d_sol[thid+(length/2)] == -1){
+          d_sol[thid] = 1;
+        }
+      }
+      if(d_sol[thid] != 0 && d_sol[thid+(length/2)] == 0){
+        if(d_sol[thid] == 1){
+          d_sol[thid+(length/2)] = -1;
+        }else if(d_sol[thid] == -1){
+          d_sol[thid+(length/2)] = 1;
+        }
+      }
+    }
+  }
+  __syncthreads();
+}
+
+__global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, int length, int *posizione){
+  int valore = d_sol[index];
+  d_daVis[index] = false;
+  int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
+  int thid = 0;
+  for(int Pass=0; Pass<ceilf((length/(blockDim.x*gridDim.x)))+1; Pass++){
+    thid = thid2 + Pass*(gridDim.x*blockDim.x);
+    //thid = thid + (index*length);
+    if(thid < length && d_daVis[thid]){  
+      printf("Io sono %d\n",thid); // qua c'è qualcosa
+      if(d_sol[thid] == 0 && valore == -1){
+        printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
+        d_daVis[thid] = true;
+        d_sol[thid] = 1;
+        printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
+      }else if(d_sol[thid] == 0 && valore == 1){
+        printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
+        //d_daVis[thid] = true;
+        d_sol[thid] = 0;  //capire cosa fare qua, dovrei diramare ? -1
+        printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
+      }else if(d_sol[thid] == ((-1)*valore)){
+        printf("Ciao %d\n", d_sol[thid]);
+        d_daVis[thid] = true;
+      }else if(d_sol[thid] == valore && valore == -1){
+        printf("Impossibile ottenere una soluzione grazie a %d\n", thid2);
+        atomicAdd(posizione, 1); 
+      }
+    }
+    __syncthreads();
+  }
+
   __syncthreads();
 }
 
@@ -147,7 +219,7 @@ int main(void)
   int vincoli = stoi(arrayyy[3]);
   int nTotLet = (letterali*2);
   long int nTotLetx2 = nTotLet * nTotLet;
-  bool matrix[nTotLetx2];
+  bool matrix[nTotLetx2] = {0};
   string str[vincoli+1];
   funcRead(str);
 
@@ -173,13 +245,13 @@ int main(void)
     }
   }
 
-  /*for(int i=0; i<nTotLetx2; i++){
+  for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
   }
   cout<<endl;
-  //}*/
+  //}
   
   //https://docs.nvidia.com/cuda/cusparse/index.html#coo-format
   
@@ -204,16 +276,52 @@ int main(void)
 
 
   //PROVIAMO A CERCARE UNA SOLUZIONE
-  int soluzione[nTotLet] = {0};
-  int *d_soluzione;
-  int bit = 1;
-  cudaMalloc(&d_soluzione, nTotLet*sizeof(int));
-  cudaMemcpy(d_soluzione, soluzione, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
-  //findSolution<<<40, 1024>>>(d_matrix3, d_soluzione, nTotLet, bit);
+  int sol[nTotLet] = {0};
+  int *d_sol;
+  cudaMalloc(&d_sol, nTotLet*sizeof(int));
+  bool daVis[nTotLet];
+  bool *d_daVis;
+  cudaMalloc(&d_daVis, nTotLet*sizeof(bool));
+  //cudaMemcpy(d_daVis, daVis, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
+  int posizione = 0;
+  int *d_posizione;
+  cudaMalloc(&d_posizione, sizeof(int));
+  bool alreadyC = true;
+  for(int i = 0; i< letterali; i++){
+    if(!alreadyC){
+      cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
+      alreadyC = true;
+    } 
+    if(sol[i]==0 && sol[i+letterali]==0){
+      sol[i] = -1;
+      sol[i+letterali] = 1;
+      cudaMemcpy(d_sol, sol, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
+      daVisitare<<<40, 1024>>>(d_matrix3, d_daVis, nTotLet, i, d_sol);
+      cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(bool), cudaMemcpyDeviceToHost);
 
+      for(int ssif = 0; ssif < nTotLet; ssif++){
+        cout<<daVis[ssif]<<" ";
+      }
+      cout<<endl;
+      int ind = 0;
+      while(ind < nTotLet && checkBoolArray(daVis, nTotLet)){
+        if(daVis[ind]){
+          workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, ind, nTotLet, d_posizione);  //posizione da cui sono partito e valore che possiede
+          cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(bool), cudaMemcpyDeviceToHost);
+        }
+        if(ind == nTotLet)
+          ind = 0;
+        ind++;
+      }  
 
+      completaSol<<<40, 1024>>>(d_sol, nTotLet);
+      alreadyC = false;
+    }
+  }
+  //cudaMemcpy(posizione, &d_posizione, sizeof(int), cudaMemcpyDeviceToHost);
+  cout<<"Ci sono: "<<posizione<<" discrepanze"<<endl;
 
-
+  cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
   cudaMemcpy(&matrix, d_matrix3, nTotLetx2*sizeof(bool), cudaMemcpyDeviceToHost);
 
 
@@ -221,18 +329,26 @@ int main(void)
 
   //cudaMemcpy(&out, d_out, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
   
-
-  /*for(int i=0; i<nTotLetx2; i++){
+  cout<<endl;
+  for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
   }
   cout<<endl;
-  //}*/
+  //}
+  cout<<"Soluzione: "<<endl;
+  for(int i=0; i<nTotLet; i++){
+    cout<<sol[i]<<endl;
+  }
+  cout<<endl;
+
+  
 
   cudaFree(d_matrix3);
   return 0;
 }
+
 
 
 
