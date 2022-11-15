@@ -186,7 +186,7 @@ __global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, in
       }else if(d_sol[thid] == 0 && valore == 1){
         printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
         //d_daVis[thid] = true;
-        d_sol[thid] = 0;  //capire cosa fare qua, dovrei diramare ? -1
+        d_sol[thid] = 1;  //capire cosa fare qua, dovrei diramare ? -1
         printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
       }else if(d_sol[thid] == ((-1)*valore)){
         printf("Ciao %d\n", d_sol[thid]);
@@ -245,13 +245,13 @@ int main(void)
     }
   }
 
-  for(int i=0; i<nTotLetx2; i++){
+ /* for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
   }
   cout<<endl;
-  //}
+  //} */
   
   //https://docs.nvidia.com/cuda/cusparse/index.html#coo-format
   
@@ -269,11 +269,16 @@ int main(void)
   //bool out[nTotLet];
   //bool *d_out;
   //cudaMalloc(&d_out, nTotLetx2*sizeof(bool));
+
+  cudaDeviceSynchronize();
+
   prova<<<40, 1024>>>(d_matrix, nTotLet, nTotLetx2, d_matrix2, d_matrix3);
+  cudaDeviceSynchronize();
   cudaFree(d_matrix);
   cudaFree(d_matrix2);
   checkDiagonale<<<40, 1024>>>(d_matrix3, nTotLet);
 
+  cudaDeviceSynchronize();
 
   //PROVIAMO A CERCARE UNA SOLUZIONE
   int sol[nTotLet] = {0};
@@ -297,17 +302,33 @@ int main(void)
       sol[i+letterali] = 1;
       cudaMemcpy(d_sol, sol, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
       daVisitare<<<40, 1024>>>(d_matrix3, d_daVis, nTotLet, i, d_sol);
+      cudaDeviceSynchronize();
       cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(bool), cudaMemcpyDeviceToHost);
 
-      for(int ssif = 0; ssif < nTotLet; ssif++){
-        cout<<daVis[ssif]<<" ";
+      //devo aggiungere i corrispettivi nel caso in cui abbia dato tutti 1
+      completaSol<<<40, 1024>>>(d_sol, nTotLet);
+      cudaDeviceSynchronize();
+
+      cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
+      
+      for(int ssif = 0; ssif < (nTotLet/2); ssif++){
+        //cout<<daVis[ssif]<<" ";
+        if(sol[ssif] == sol[ssif+letterali] && sol[ssif] == 1){
+          cout<<"C'è una bella discrepanza, due valori collegati a falso e che devono essere veri"<<endl;
+          cout<<"sono della stessa medaglia."<<endl;
+          return 0;
+        }
       }
+
       cout<<endl;
+
       int ind = 0;
       while(ind < nTotLet && checkBoolArray(daVis, nTotLet)){
         if(daVis[ind]){
-          workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, ind, nTotLet, d_posizione);  //posizione da cui sono partito e valore che possiede
+          workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, ind, nTotLet, d_posizione); 
+          cudaDeviceSynchronize(); //posizione da cui sono partito e valore che possiede
           cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(bool), cudaMemcpyDeviceToHost);
+
         }
         if(ind == nTotLet)
           ind = 0;
@@ -315,6 +336,7 @@ int main(void)
       }  
 
       completaSol<<<40, 1024>>>(d_sol, nTotLet);
+      cudaDeviceSynchronize();
       alreadyC = false;
     }
   }
@@ -330,13 +352,13 @@ int main(void)
   //cudaMemcpy(&out, d_out, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
   
   cout<<endl;
-  for(int i=0; i<nTotLetx2; i++){
+  /*for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
   }
   cout<<endl;
-  //}
+  //}*/
   cout<<"Soluzione: "<<endl;
   for(int i=0; i<nTotLet; i++){
     cout<<sol[i]<<endl;
