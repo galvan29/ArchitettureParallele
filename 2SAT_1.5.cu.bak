@@ -311,19 +311,11 @@ int main(void)
 
       cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
       
-      for(int ssif = 0; ssif < nTotLet; ssif++){
-        cout<<daVis[ssif]<<" ";
-      }
-      cout<<endl;
-      for(int ssif = 0; ssif < nTotLet; ssif++){
-        cout<<sol[ssif]<<" ";
-      }
-      cout<<endl;
       for(int ssif = 0; ssif < (nTotLet/2); ssif++){
         //cout<<daVis[ssif]<<" ";
         if(sol[ssif] == sol[ssif+letterali] && sol[ssif] == 1){
           cout<<"C'è una bella discrepanza, due valori collegati a falso e che devono essere veri"<<endl;
-          cout<<"sono della stessa medaglia al giro ."<<i<<endl;
+          cout<<"sono della stessa medaglia."<<endl;
           return 0;
         }
       }
