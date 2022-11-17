@@ -63,21 +63,14 @@ __global__ void prova(bool *d_matrix, int length, long int lengthx2, bool *d_mat
 
     if(thid < (lengthx2)){
       if(d_matrix[thid]){  //thid = 4
-        int secondo = (thid%length);  // 4
+        int secondo = (thid%length);
+        if(secondo >= (length/2)){
+          secondo = secondo - (length/2);
+        }else{
+          secondo = secondo + (length/2);
+        }  // 4
         int primo = floorf(thid/length);  // 0
         for(int i = (secondo*length); i < ((secondo+1)*length); i++){   //da 24 
-          if(d_matrix[i] && ((i%length)+1) != (primo+1)){    //24 però 24%6+1 == 1 quindi non entro
-            int posizione = (primo*length) + (i%length);
-            d_matrix2[posizione] = 1;
-          }
-        }
-        int terzo = 0;
-        if(secondo >= (length/2)){
-          terzo = secondo - (length/2);
-        }else{
-          terzo = secondo + (length/2);
-        }
-        for(int i = (terzo*length); i < ((terzo+1)*length); i++){   //da 24
           if(d_matrix[i] && ((i%length)+1) != (primo+1)){    //24 però 24%6+1 == 1 quindi non entro
             int posizione = (primo*length) + (i%length);
             d_matrix2[posizione] = 1;
@@ -176,8 +169,9 @@ __global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, in
   for(int Pass=0; Pass<ceilf((length/(blockDim.x*gridDim.x)))+1; Pass++){
     thid = thid2 + Pass*(gridDim.x*blockDim.x);
     //thid = thid + (index*length);
+    //printf("Io sono %d\n",thid);
     if(thid < length && d_daVis[thid]){  
-      printf("Io sono %d\n",thid); // qua c'è qualcosa
+      //printf("Io sono %d\n",thid); // qua c'è qualcosa
       if(d_sol[thid] == 0 && valore == -1){
         printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
         d_daVis[thid] = true;
@@ -200,6 +194,16 @@ __global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, in
   }
 
   __syncthreads();
+}
+
+double trasformaDaArrayAInt(int *sol, int length){
+  double somma = 0;
+  for(int i = (length-1); i>=0; i--){
+    if(sol[i] == 1){
+      somma += pow(2, (length-1)-i);
+    }
+  }
+  return somma;
 }
 
 
@@ -245,7 +249,7 @@ int main(void)
     }
   }
 
- /* for(int i=0; i<nTotLetx2; i++){
+  /*for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
@@ -311,14 +315,14 @@ int main(void)
 
       cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
       
-      for(int ssif = 0; ssif < nTotLet; ssif++){
+      /*for(int ssif = 0; ssif < nTotLet; ssif++){
         cout<<daVis[ssif]<<" ";
       }
       cout<<endl;
       for(int ssif = 0; ssif < nTotLet; ssif++){
         cout<<sol[ssif]<<" ";
       }
-      cout<<endl;
+      cout<<endl;*/
       for(int ssif = 0; ssif < (nTotLet/2); ssif++){
         //cout<<daVis[ssif]<<" ";
         if(sol[ssif] == sol[ssif+letterali] && sol[ssif] == 1){
@@ -328,7 +332,7 @@ int main(void)
         }
       }
 
-      cout<<endl;
+      //cout<<endl;
 
       int ind = 0;
       while(ind < nTotLet && checkBoolArray(daVis, nTotLet)){
@@ -359,20 +363,21 @@ int main(void)
 
   //cudaMemcpy(&out, d_out, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
   
-  cout<<endl;
-  /*for(int i=0; i<nTotLetx2; i++){
+  /*cout<<endl;
+  for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
   }
   cout<<endl;
-  //}*/
+  */
   cout<<"Soluzione: "<<endl;
   for(int i=0; i<nTotLet; i++){
     cout<<sol[i]<<endl;
   }
   cout<<endl;
-
+  //double soluzNumerica = trasformaDaArrayAInt(sol, nTotLet);
+  //cout<<soluzNumerica<<endl;
   
 
   cudaFree(d_matrix3);
