@@ -162,7 +162,7 @@ __global__ void completaSol(int *d_sol, int length){
   __syncthreads();
 }
 
-__global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, int length, int *posizione, int *d_sol_backup){
+__global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, int length, int *d_posizione, int *d_sol_backup){
   int valore = d_sol[index];
   d_daVis[index] = false;
   int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -187,19 +187,16 @@ __global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, in
         d_daVis[thid] = true;
       }else if(d_sol[thid] == valore && valore == -1){
         printf("Impossibile ottenere una soluzione grazie a %d\n", thid2);
-        atomicAdd(posizione, 1); 
+        d_posizione[0] = d_posizione[0] || 1;
+        printf("Valore nella scheda video %d \n", d_posizione[0]);
       }
-     // if(d_sol[index] == -1){
-     //   printf("Hey, valgo -1 %d", d_sol[thid]);
-     // }
-     // if(d_sol[thid] == 1){
-     //   printf("Ciao, valgo 1 %d\n", d_sol[thid]);
-      //}
-      //printf("Vediamo porcoddue %d\n", d_sol[index]);
     }
     __syncthreads();
   }
   __syncthreads();
+
+  if(thid2 == 0)
+    printf("Valore nella scheda video DA FUORI %d \n", d_posizione[0]);
 }
 
 double trasformaDaArrayAIntNeg(int *sol, int length){
@@ -335,9 +332,10 @@ int main(void)
   bool *d_daVis;
   cudaMalloc(&d_daVis, nTotLet*sizeof(bool));
   //cudaMemcpy(d_daVis, daVis, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
-  int posizione = 0;
+  int posizione[1] = {0};
   int *d_posizione;
-  cudaMalloc(&d_posizione, sizeof(int));
+  cudaMalloc(&d_posizione, 1*sizeof(int));
+  cudaMemcpy(d_posizione, posizione, 1*sizeof(int), cudaMemcpyHostToDevice);
 
 
   list<double> prox[100];
@@ -386,7 +384,7 @@ int main(void)
       completaSol<<<40, 1024>>>(d_sol, nTotLet);
       cudaDeviceSynchronize();
 
-      cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
+      //cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
       
       /*for(int ssif = 0; ssif < nTotLet; ssif++){
         cout<<daVis[ssif]<<" ";
@@ -419,9 +417,13 @@ int main(void)
     for(int ssif = 0; ssif < nTotLet; ssif++){
       cout<<sol[ssif]<<" ";
     }
-
-    soluzioniRegistrate[0].push_back(trasformaDaArrayAIntPos(sol, nTotLet));
-
+    cout<<endl;
+    cudaMemcpy(posizione, d_posizione, 1*sizeof(int), cudaMemcpyDeviceToHost);
+    cout<<"Valore delle discrepanze "<<posizione[0]<<endl;
+    if(posizione[0] == 0){
+      soluzioniRegistrate[0].push_back(trasformaDaArrayAIntPos(sol, nTotLet));
+    }
+    cudaMemset(d_posizione, 0, 1*sizeof(int));
     cout<<endl;
     if(prox[0].size() > 0){
       trasformaDaIntAArray(temp, nTotLet, prox[0].back());
@@ -432,9 +434,6 @@ int main(void)
     riprendoSoluzione = true;
   }while(prox[0].size() > 0);
   
-  
-  //cudaMemcpy(posizione, &d_posizione, sizeof(int), cudaMemcpyDeviceToHost);
-  cout<<endl<<"Ci sono: "<<posizione<<" discrepanze"<<endl;
 
   //cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
   cudaMemcpy(&matrix, d_matrix3, nTotLetx2*sizeof(bool), cudaMemcpyDeviceToHost);
@@ -455,6 +454,7 @@ int main(void)
 
   cout<<endl;
   cout<<"Soluzioni mostrate in ordine di registrazione in valore intero: "<<endl;
+  cout<<"Dal decimale al bin rendo 1 gli 1 e i -1 0: "<<endl;
   while(soluzioniRegistrate[0].size() > 0){
     cout<<soluzioniRegistrate[0].front()<<endl;
     soluzioniRegistrate[0].pop_front();
