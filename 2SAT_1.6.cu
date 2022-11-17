@@ -180,20 +180,25 @@ __global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, in
         printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
       }else if(d_sol[thid] == 0 && valore == 1){
         printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
-        //d_daVis[thid] = true;
+        d_daVis[thid] = true;
         d_sol[thid] = 1;  //capire cosa fare qua, dovrei diramare ? -1
         printf("Io sono %d e il valore dentro d_sol[thid]: %d\n",thid, d_sol[thid]);
-      }else if(d_sol[thid] == ((-1)*valore)){
-        printf("Ciao %d\n", d_sol[thid]);
+      }else if(d_sol[thid] == (-1*valore)){
         d_daVis[thid] = true;
       }else if(d_sol[thid] == valore && valore == -1){
         printf("Impossibile ottenere una soluzione grazie a %d\n", thid2);
         atomicAdd(posizione, 1); 
       }
+     // if(d_sol[index] == -1){
+     //   printf("Hey, valgo -1 %d", d_sol[thid]);
+     // }
+     // if(d_sol[thid] == 1){
+     //   printf("Ciao, valgo 1 %d\n", d_sol[thid]);
+      //}
+      //printf("Vediamo porcoddue %d\n", d_sol[index]);
     }
     __syncthreads();
   }
-
   __syncthreads();
 }
 
@@ -390,7 +395,7 @@ int main(void)
       int ind = 0;
       while(ind < nTotLet && checkBoolArray(daVis, nTotLet)){
         if(daVis[ind]){
-          workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, ind, nTotLet, d_posizione, d_sol_backup); 
+          workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, i, nTotLet, d_posizione, d_sol_backup); 
           cudaDeviceSynchronize(); //posizione da cui sono partito e valore che possiede
           cudaMemcpy(daVis, d_daVis, nTotLet*sizeof(bool), cudaMemcpyDeviceToHost);
         }
