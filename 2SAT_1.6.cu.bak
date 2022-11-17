@@ -197,17 +197,7 @@ __global__ void workVisit(bool *matrix, int *d_sol, bool *d_daVis, int index, in
   __syncthreads();
 }
 
-double trasformaDaArrayAIntNeg(int *sol, int length){
-  double somma = 0;
-  for(int i = (length-1); i>=0; i--){
-    if(sol[i] == -1){
-      somma += pow(2, (length-1)-i);
-    }
-  }
-  return somma;
-}
-
-double trasformaDaArrayAIntPos(int *sol, int length){
+double trasformaDaArrayAInt(int *sol, int length){
   double somma = 0;
   for(int i = (length-1); i>=0; i--){
     if(sol[i] == 1){
@@ -216,16 +206,6 @@ double trasformaDaArrayAIntPos(int *sol, int length){
   }
   return somma;
 }
-
-void trasformaDaArrayAArray(int *sol, int length, int *temp){
-  for(int i = 0; i < length; i++){
-    if(sol[i] == 1)
-      sol[i]=-1;
-    if(temp[i] == 1)    
-      sol[i] = 1;
-  } 
-}
-
 
 void trasformaDaIntAArray(int *sol, int length, int val){
   for(int i = (length-1); i>=0; i--){
@@ -348,8 +328,6 @@ int main(void)
   //prox.push_back(trasformaDaArrayAInt(sol, nTotLet));
   //cout<<"Questa è una soluzione da vedere "<<prox[0].back()<<endl; */
   bool riprendoSoluzione = false;
-  int temp[nTotLet];
-
   do{
     if(prox[0].size() > 0)
       prox[0].pop_back();
@@ -368,8 +346,7 @@ int main(void)
 
         sol_backup[i] = 1;
         sol_backup[i+letterali] = -1;
-        prox[0].push_back(trasformaDaArrayAIntNeg(sol_backup, nTotLet));
-        prox[0].push_back(trasformaDaArrayAIntPos(sol_backup, nTotLet));
+        prox[0].push_back(trasformaDaArrayAInt(sol_backup, nTotLet));
       }
       riprendoSoluzione = false;
       cudaMemcpy(d_sol, sol, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
@@ -414,16 +391,10 @@ int main(void)
     for(int ssif = 0; ssif < nTotLet; ssif++){
       cout<<sol[ssif]<<" ";
     }
-
-    soluzioniRegistrate[0].push_back(trasformaDaArrayAIntPos(sol, nTotLet));
-
+    soluzioniRegistrate[0].push_back(trasformaDaArrayAInt(sol, nTotLet));
     cout<<endl;
-    if(prox[0].size() > 0){
-      trasformaDaIntAArray(temp, nTotLet, prox[0].back());
-      prox[0].pop_back();
+    if(prox[0].size() > 0)
       trasformaDaIntAArray(sol, nTotLet, prox[0].back());
-      trasformaDaArrayAArray(sol, nTotLet, temp);
-    }
     riprendoSoluzione = true;
   }while(prox[0].size() > 0);
   
