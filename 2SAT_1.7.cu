@@ -65,10 +65,13 @@ __device__ void diagonale(bool *d_matrix, int length, int thid)
   d_matrix[(primo * length) + secondo] |= d_matrix[(secondo * length) + primo];
 }
 
-__global__ void prova(bool *d_matrix, int length, long int lengthx2, bool *d_matrix2, bool *d_matrix3)
+__global__ void prova(bool *d_matrix, int length, long int lengthx2, int *d_posizione)
 {
   int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
   int thid = 0;
+  /*if(thid2 == 0){
+    printf("Ma quante volte rientro\n");
+  }*/
 
   for (int Pass = 0; Pass < ceilf((lengthx2 / (blockDim.x * gridDim.x))) + 1; Pass++)
   {
@@ -80,31 +83,28 @@ __global__ void prova(bool *d_matrix, int length, long int lengthx2, bool *d_mat
       { // thid = 4
         int secondo = (thid % length);
         if (secondo >= (length / 2))
-        {
           secondo = secondo - (length / 2);
-        }
         else
-        {
-          secondo = secondo + (length / 2);
-        }                                  // 4
+          secondo = secondo + (length / 2);                                 // 4
         int primo = floorf(thid / length); // 0
         for (int i = (secondo * length); i < ((secondo + 1) * length); i++)
         { // da 24
           if (d_matrix[i] && ((i % length) + 1) != (primo + 1))
           { // 24 però 24%6+1 == 1 quindi non entro
             int posizione = (primo * length) + (i % length);
-            d_matrix2[posizione] = 1;
+            d_matrix[posizione] = 1;
+            d_posizione[0] = 1;
           }
         }
       }
-      sistema(d_matrix3, d_matrix2, length, thid);
-      sistema2(d_matrix, d_matrix2, length, thid);
+      //sistema(d_matrix, d_matrix2, length, thid);   //3 0
+      //sistema2(d_matrix, d_matrix2, length, thid);
     }
     __syncthreads();
 
     if (thid < (length * length))
     {
-      diagonale(d_matrix3, length, thid);
+      diagonale(d_matrix, length, thid);
     }
   }
   __syncthreads();
@@ -370,27 +370,52 @@ int main(void)
   // https://docs.nvidia.com/cuda/cusparse/index.html#coo-format
 
   bool *d_matrix;
-  bool *d_matrix2;
-  bool *d_matrix3;
+ // bool *d_matrix2;
+  //bool *d_matrix3;
 
   cudaMalloc(&d_matrix, nTotLetx2 * sizeof(bool));
-  cudaMalloc(&d_matrix2, nTotLetx2 * sizeof(bool));
-  cudaMalloc(&d_matrix3, nTotLetx2 * sizeof(bool));
+  //cudaMalloc(&d_matrix2, nTotLetx2 * sizeof(bool));
+  //cudaMalloc(&d_matrix3, nTotLetx2 * sizeof(bool));
 
   cudaMemcpy(d_matrix, matrix, nTotLetx2 * sizeof(bool), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_matrix3, matrix, nTotLetx2 * sizeof(bool), cudaMemcpyHostToDevice);
-  sleep(10);
+ // cudaMemcpy(d_matrix3, matrix, nTotLetx2 * sizeof(bool), cudaMemcpyHostToDevice);
+ // sleep(10);
   // bool out[nTotLet];
   // bool *d_out;
   // cudaMalloc(&d_out, nTotLetx2*sizeof(bool));
 
   cudaDeviceSynchronize();
 
-  prova<<<40, 1024>>>(d_matrix, nTotLet, nTotLetx2, d_matrix2, d_matrix3);
+  int posizione[1] = {0};
+  int *d_posizione;
+  cudaMalloc(&d_posizione, 1 * sizeof(int));
+
+  prova<<<40, 1024>>>(d_matrix, nTotLet, nTotLetx2, d_posizione);
   cudaDeviceSynchronize();
-  cudaFree(d_matrix);
-  cudaFree(d_matrix2);
-  checkDiagonale<<<40, 1024>>>(d_matrix3, nTotLet);
+  prova<<<40, 1024>>>(d_matrix, nTotLet, nTotLetx2, d_posizione);
+  cudaDeviceSynchronize();
+
+  /*do{
+    posizione[0] = 0;
+    cout<<"Prima " <<posizione[0]<<endl;
+    cudaMemcpy(d_posizione, posizione, 1 * sizeof(int), cudaMemcpyHostToDevice);
+    prova<<<40, 1024>>>(d_matrix, nTotLet, nTotLetx2, d_posizione);
+    cudaDeviceSynchronize();
+    cudaMemcpy(posizione, d_posizione, 1 * sizeof(int), cudaMemcpyDeviceToHost);
+    cout<<"Rientro"<<endl;
+    cout<<"Dopo "<<posizione[0]<<endl;
+  }while(posizione[0] > 0);
+*/
+  posizione[0] = 0;
+  cudaMemcpy(d_posizione, posizione, 1 * sizeof(int), cudaMemcpyHostToDevice);
+      
+
+          
+    
+
+  //cudaFree(d_matrix);
+  //cudaFree(d_matrix2);
+  checkDiagonale<<<40, 1024>>>(d_matrix, nTotLet);
 
   cudaDeviceSynchronize();
 
@@ -407,13 +432,10 @@ int main(void)
   bool *d_daVis;
   cudaMalloc(&d_daVis, nTotLet * sizeof(bool));
   // cudaMemcpy(d_daVis, daVis, nTotLet*sizeof(int), cudaMemcpyHostToDevice);
-  int posizione[1] = {0};
-  int *d_posizione;
-  cudaMalloc(&d_posizione, 1 * sizeof(int));
-  cudaMemcpy(d_posizione, posizione, 1 * sizeof(int), cudaMemcpyHostToDevice);
 
   list<double> prox[100];
   list<double> soluzioniRegistrate[1];
+
   /*sol[0] = -1;
   sol[0+letterali] = 1;
 
@@ -463,7 +485,7 @@ int main(void)
       if (riprendoSoluzione)
       {
         cudaMemcpy(d_sol, sol, nTotLet * sizeof(int), cudaMemcpyHostToDevice);
-        daVisitare<<<40, 1024>>>(d_matrix3, d_daVis, nTotLet, i, d_sol);
+        daVisitare<<<40, 1024>>>(d_matrix, d_daVis, nTotLet, i, d_sol);
         cudaDeviceSynchronize();
         cudaMemcpy(daVis, d_daVis, nTotLet * sizeof(bool), cudaMemcpyDeviceToHost);
 
@@ -475,7 +497,7 @@ int main(void)
         {
           if (daVis[ind])
           {
-            workVisit<<<40, 1024>>>(d_matrix3, d_sol, d_daVis, i, nTotLet, d_posizione, d_sol_backup);
+            workVisit<<<40, 1024>>>(d_matrix, d_sol, d_daVis, i, nTotLet, d_posizione, d_sol_backup);
             cudaDeviceSynchronize(); // posizione da cui sono partito e valore che possiede
             cudaMemcpy(daVis, d_daVis, nTotLet * sizeof(bool), cudaMemcpyDeviceToHost);
           }
@@ -532,18 +554,18 @@ int main(void)
   } while (prox[0].size() > 0);
 
   // cudaMemcpy(sol, d_sol, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&matrix, d_matrix3, nTotLetx2 * sizeof(bool), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&matrix, d_matrix, nTotLetx2 * sizeof(bool), cudaMemcpyDeviceToHost);
 
   // cudaMemcpy(&out, d_out, nTotLet*sizeof(int), cudaMemcpyDeviceToHost);
 
-  /*cout<<endl;
+  cout<<endl;
   for(int i=0; i<nTotLetx2; i++){
     cout<<matrix[i]<<" ";
     if(i%nTotLet == (nTotLet-1))
       cout<<endl;
   }
   cout<<endl;
-  */
+  
 
   cout << endl;
   cout << "Soluzioni mostrate in ordine di registrazione in valore intero: " << endl;
@@ -559,6 +581,6 @@ int main(void)
   // double soluzNumerica = trasformaDaArrayAInt(sol, nTotLet);
   // cout<<soluzNumerica<<endl;
 
-  cudaFree(d_matrix3);
+  cudaFree(d_matrix);
   return 0;
 }
