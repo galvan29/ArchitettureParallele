@@ -444,7 +444,7 @@ int main(void)
       }
       if (!riprendoSoluzione)
       {
-
+        //cout<<i<<endl;
         if (sol[i] == 0 && sol[i + letterali] == 0)
         {
           sol[i] = -1;
@@ -453,6 +453,7 @@ int main(void)
           sol_backup[i] = 1;
           sol_backup[i + letterali] = -1;
           prox[0].push_back(trasformaDaArrayAIntNeg(sol_backup, nTotLet));
+          prox[0].push_back(i);
           prox[0].push_back(trasformaDaArrayAIntPos(sol_backup, nTotLet));
           riprendoSoluzione = true;
         }
@@ -466,7 +467,6 @@ int main(void)
         cudaDeviceSynchronize();
         cudaMemcpy(daVis, d_daVis, nTotLet * sizeof(bool), cudaMemcpyDeviceToHost);
 
-        // devo aggiungere i corrispettivi nel caso in cui abbia dato tutti 1
         completaSol<<<40, 1024>>>(d_sol, nTotLet);
         cudaDeviceSynchronize();
 
@@ -490,7 +490,7 @@ int main(void)
         riprendoSoluzione = false;
       }
 
-    } while (checkIfSolZero(sol, nTotLet));
+    } while (checkIfSolZero(sol, nTotLet) && i < nTotLet);
 
     // di una singola soluzione
 
@@ -518,9 +518,16 @@ int main(void)
     {
       trasformaDaIntAArray(temp, nTotLet, prox[0].back());
       prox[0].pop_back();
+      i = prox[0].back();
+      prox[0].pop_back();
       trasformaDaIntAArray(sol, nTotLet, prox[0].back());
       trasformaDaArrayAArray(sol, nTotLet, temp);
     }
+    cout<<"Sto riprendendo una soluzione, con i="<<i<<" questa:"<<endl;
+    for(int bella = 0; bella < nTotLet; bella++){
+      cout<<sol[bella]<< " ";
+    }
+    cout<<endl;
     riprendoSoluzione = true;
   } while (prox[0].size() > 0);
 
@@ -541,6 +548,8 @@ int main(void)
   cout << endl;
   cout << "Soluzioni mostrate in ordine di registrazione in valore intero: " << endl;
   cout << "Dal decimale al bin rendo 1 gli 1 e i -1 0: " << endl;
+  soluzioniRegistrate[0].sort();
+  soluzioniRegistrate[0].unique();
   while (soluzioniRegistrate[0].size() > 0)
   {
     cout << soluzioniRegistrate[0].front() << endl;
