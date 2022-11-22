@@ -10,12 +10,8 @@
 #include <unistd.h>
 #include <list>
 #include <bits/stdc++.h>
-//#include <../Magick++.h> 
-// Utilizza deque #include <deque>
-// Hai efficienza ad aggiungere ai lati 
 
 using namespace std;
-//using namespace Magick; 
 
 void funcRead(string str[])
 {
@@ -80,8 +76,6 @@ __global__ void prova(bool *d_matrix, int length, long int lengthx2, int *d_posi
           }
         }
       }
-      //sistema(d_matrix, d_matrix2, length, thid);   //3 0
-      //sistema2(d_matrix, d_matrix2, length, thid);
     }
     __syncthreads();
 
@@ -333,6 +327,21 @@ __global__ void newSolution(int *d_posizione){
 
 }
 
+__global__ void controlloNuovaSol(int *d_sol, int *d_solFinali, int length, int indexSol, int *d_posizione){
+  int thid = blockIdx.x * blockDim.x + threadIdx.x;
+  if(thid < indexSol){
+    int cont = 0;
+    int i = 0;
+    do{
+      i++;
+      cont++;
+    }while(i < length && d_solFinali[thid*length + i] == d_sol[i]);
+
+    if(cont==length)
+      d_posizione[2] = d_posizione[2] || 1;
+  }
+  __syncthreads();
+}
 
 
 
@@ -420,13 +429,20 @@ int main(void)
   int *d_sol_backup;
   cudaMalloc(&d_sol_backup, nTotLet * sizeof(int));
 
-  int k = 1;
+  int k = 3;
+  int indexSol = 0;
   int cSol = 0;
-  list<double> prox[100];
-  int solReg[nTotLet * k];
+  list<double> prox[1];
+  int solReg[nTotLet * 1000];
   int *d_solReg;
-  cudaMalloc(&d_solReg, nTotLet * sizeof(int));
-  cudaMemcpy(d_solReg, solReg, nTotLet * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMalloc(&d_solReg, (nTotLet * 1000) * sizeof(int));
+  cudaMemcpy(d_solReg, solReg, (nTotLet * 1000) * sizeof(int), cudaMemcpyHostToDevice);
+
+  //array per soluzioni finali
+  int solFinali[nTotLet * k];
+  int *d_solFinali;
+  cudaMalloc(&d_solFinali, (nTotLet * k) * sizeof(int));
+  cudaMemcpy(d_solFinali, solFinali, (nTotLet * k) * sizeof(int), cudaMemcpyHostToDevice);
 
   bool visitato[nTotLet] = {0};
   bool *d_visitato;
@@ -462,7 +478,8 @@ int main(void)
           prox[0].push_back(i);
           cudaMemcpy(d_sol_backup, sol_backup, nTotLet * sizeof(int), cudaMemcpyHostToDevice);
           //printInt(sol_backup, nTotLet);
-          salvaSoluzioneProx<<<40, 1024>>>(d_solReg, d_sol_backup, nTotLet, cSol); 
+          salvaSoluzioneProx<<<40, 1024>>>(d_solReg, d_sol_backup, nTotLet, cSol);
+          //cout<<cSol<<endl; 
           cudaDeviceSynchronize();
           cSol++;
           cudaMemcpy(d_sol, sol, nTotLet * sizeof(int), cudaMemcpyHostToDevice);
@@ -474,6 +491,7 @@ int main(void)
           esiste = false;       
         }
         i++;
+        cout<<i<<endl;
       }
       if(riprendoSoluzione){
         checkRow<<<40, 1024>>>(d_matrix, d_sol, nTotLet, d_posizione, d_visitato, d_esisteNeiVincoli);
@@ -489,12 +507,11 @@ int main(void)
     cudaMemcpy(posizione, d_posizione, 3 * sizeof(int), cudaMemcpyDeviceToHost);
     if(posizione[1] == 0){
       //cout<<"Trovata una soluzione"<<endl;
-      k--;
       //printInt(sol, nTotLet);
       completaSol<<<40, 1024>>>(d_sol, nTotLet, d_esisteNeiVincoli);
       cudaDeviceSynchronize();
       cudaMemcpy(sol, d_sol, nTotLet * sizeof(int), cudaMemcpyDeviceToHost); 
-      cout<<"Soluzione sistemata"<<endl;
+      /*cout<<"Soluzione sistemata"<<endl;
       for (int ssif = 0; ssif < nTotLet; ssif++)
       {   
           if(!esisteNeiVincoli[ssif])
@@ -503,8 +520,28 @@ int main(void)
             cout << sol[ssif] << " ";
       }
       cout<<endl;
-      cout<<endl;
+      cout<<endl;*/
       //SALVARE SE NUOVA
+      //chiamo funzione 
+      if(indexSol > 0)
+        controlloNuovaSol<<<40, 1024>>>(d_sol, d_solFinali, nTotLet, indexSol, d_posizione);
+      //cout<<"Valore indexaSol"<<endl;
+
+      cudaMemcpy(posizione, d_posizione, 3 * sizeof(int), cudaMemcpyDeviceToHost);
+      if(posizione[2] == 0 || indexSol == 0){
+        k--;
+        for (int ssif = 0; ssif < nTotLet; ssif++)
+        {   
+            solFinali[indexSol * nTotLet + ssif] = sol[ssif];
+        }
+        //printInt(sol, nTotLet);
+        indexSol++;
+        cudaMemcpy(d_solFinali, solFinali, (nTotLet * k) * sizeof(int), cudaMemcpyHostToDevice);
+      }
+     //cout<<"Array delle soluzioni"<<endl;
+      //printInt(solFinali, nTotLet*(indexSol));
+      posizione[2] = 0;
+      cudaMemcpy(d_posizione, posizione, 3 * sizeof(int), cudaMemcpyHostToDevice);
     }
 
     posizione[1] = 0;
@@ -525,24 +562,27 @@ int main(void)
 
   }while (continua && k > 0);
 
+  ofstream myfile;
+  myfile.open ("solution.txt");
+  for(int ind = 0; ind < nTotLet*indexSol; ind++){
+    myfile << solFinali[ind]<<" ";
+    if(ind%nTotLet == (nTotLet-1) && ind != 0 && ind != (nTotLet*indexSol-1))
+      myfile << "\n";
+  }
 
-
-
+  myfile.close();
   cout<<endl;
   cout<<"TERMINATO"<<endl;
   cout<<"k vale ora: "<<k<<endl;
   if(k == 0)
     cout<<"Ci sono tutte le soluzioni che cercavi"<<endl;
- /* cout << "Soluzioni mostrate in ordine di registrazione in valore intero: " << endl;
-  cout << "Dal decimale al bin rendo 1 gli 1 e i -1 0: " << endl;
-  soluzioniRegistrate[0].sort();
-  soluzioniRegistrate[0].unique();
-  while (soluzioniRegistrate[0].size() > 0)
-  {
-    cout << soluzioniRegistrate[0].front() << endl;
-    soluzioniRegistrate[0].pop_front();
-  }
-  cout << endl;*/
   cudaFree(d_matrix);
+  cudaFree(d_esisteNeiVincoli);
+  cudaFree(d_posizione);
+  cudaFree(d_sol);
+  cudaFree(d_sol_backup);
+  cudaFree(d_solFinali);
+  cudaFree(d_solReg);
+  cudaFree(d_visitato);
   return 0;
 }
