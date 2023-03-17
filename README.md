@@ -3,7 +3,8 @@
 Risoluzione del problema del 2SAT in parallelo tramite utilizzo delle libreria NVIDIA.
 
 Esecuzione
-python create.py n m  //n = numero di letterali; m = numero di vincoli 
+python create.py n m  
+n = numero di letterali; m = numero di vincoli 
 
 nvcc -o b main.cu 
 ./b
