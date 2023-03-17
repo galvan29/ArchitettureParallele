@@ -14,7 +14,7 @@ for i in range(vincoli):
   value2 = randint(-letterali, letterali)
   while value==0:
     value = randint(-letterali, letterali)
-  while value2==0 or value2==value or value2==-value:
+  while value2==0:# or value2==value or value2==-value:
     value2 = randint(-letterali, letterali)
   add =  "\n" + str(value) + " " + str(value2) + " " + str(0)
   file.write(add)
