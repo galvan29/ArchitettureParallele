@@ -26,7 +26,7 @@ int main(int argn, char *args[])  //main
   bool arg1 = false;
   bool arg2 = false;
   int k = 1;  							                                                //number of solutiont o find
-  string nomeFile = "vincoli.txt";
+  string nomeFile = "v1.txt";
 
   if(argn>1){
 		for(int i=0; i<argn; i++)
@@ -40,6 +40,13 @@ int main(int argn, char *args[])  //main
 			}
 							
 	}
+  if(!arg1 || !arg2){
+    cout<<"Gli argomenti di input sono errati"<<endl;
+    cout<<"Inserisci -K=n -file='m', con n = num di sol. max e m = file.txt dei vincoli"<<endl;
+    return 0;
+  }
+  
+    
 	
   cout<<nomeFile<<endl;
 	
@@ -117,12 +124,12 @@ int main(int argn, char *args[])  //main
   gpuErrchk(cudaGetLastError());
   //creo nuovi archi
   int old = 0;
-  do{
+  do{                                                                                                    //loop for creating new constraints
     old = status[0];
-    status[0] = 0;                                                            //check modifiche
+    status[0] = 0;                                                                                          //check modifiche
     cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    createConstraints<<<40, 1024>>>(d_adj_matrix, nNegPosLit, sizeAdj, d_status);           //check for same new constraints and for new edge
+    createConstraints<<<40, 1024>>>(d_adj_matrix, nNegPosLit, sizeAdj, d_status);                           //check for same new constraints and for new edge
     cudaDeviceSynchronize();
     cudaMemcpy(status, d_status, 3 * sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
@@ -198,16 +205,16 @@ int main(int argn, char *args[])  //main
       cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);            //copy to gpu
       
       gpuErrchk(cudaGetLastError());
- 	  if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                  //start, if two sibling literals both have 0 i.e. no value.
-        memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                            //copy current solution
+ 	  if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                                    //start, if two sibling literals both have 0 i.e. no value.
+        memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                                            //copy current solution
         
         gpuErrchk(cudaGetLastError());
-		if(littExist[i]){                                                               //give -1 to solution and 1 to alternative solution
+		if(littExist[i]){                                                                                   //give -1 to solution and 1 to alternative solution
           sol[i] = -1;
           alternativeSol[i] = 1;
           esiste = true;
         }
-        if(littExist[i + nLitt]){                                                       //give 1 to solution and -1 to alternative solution
+        if(littExist[i + nLitt]){                                                                          //give 1 to solution and -1 to alternative solution
           sol[i + nLitt] = 1;
           alternativeSol[i + nLitt] = -1;
           esiste = true;
