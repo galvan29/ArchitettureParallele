@@ -1,10 +1,10 @@
 from random import randint
 import sys
 
-file = open("vincoli.txt","a")
+file = open(sys.argv[1],"a")
 file.truncate(0)
-letterali = int(float(sys.argv[1]))
-vincoli = int(float(sys.argv[2]))
+letterali = int(float(sys.argv[2]))
+vincoli = int(float(sys.argv[3]))
 first_row = "p cnf " + str(letterali) + " " + str(vincoli)
 file.write(first_row)
 
@@ -14,7 +14,7 @@ for i in range(vincoli):
   value2 = randint(-letterali, letterali)
   while value==0:
     value = randint(-letterali, letterali)
-  while value2==0:# or value2==value or value2==-value:
+  while value2==0 or value2==value or value2==-value:
     value2 = randint(-letterali, letterali)
   add =  "\n" + str(value) + " " + str(value2) + " " + str(0)
   file.write(add)
