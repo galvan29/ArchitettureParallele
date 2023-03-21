@@ -46,10 +46,6 @@ int main(int argn, char *args[])  //main
     return 0;
   }
   
-    
-	
-  cout<<nomeFile<<endl;
-	
   string s = firstLine(nomeFile);   //read first line of constraint file
   string infoFirstLine[4];
   stringstream ss(s);
@@ -124,12 +120,12 @@ int main(int argn, char *args[])  //main
   gpuErrchk(cudaGetLastError());
   //creo nuovi archi
   int old = 0;
-  do{                                                                                                    //loop for creating new constraints
+  do{
     old = status[0];
-    status[0] = 0;                                                                                          //check modifiche
+    status[0] = 0;                                                            //check modifiche
     cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    createConstraints<<<40, 1024>>>(d_adj_matrix, nNegPosLit, sizeAdj, d_status);                           //check for same new constraints and for new edge
+    createConstraints<<<40, 1024>>>(d_adj_matrix, nNegPosLit, sizeAdj, d_status);           //check for same new constraints and for new edge
     cudaDeviceSynchronize();
     cudaMemcpy(status, d_status, 3 * sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
@@ -205,16 +201,16 @@ int main(int argn, char *args[])  //main
       cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);            //copy to gpu
       
       gpuErrchk(cudaGetLastError());
- 	  if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                                    //start, if two sibling literals both have 0 i.e. no value.
-        memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                                            //copy current solution
+ 	  if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                  //start, if two sibling literals both have 0 i.e. no value.
+        memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                            //copy current solution
         
         gpuErrchk(cudaGetLastError());
-		if(littExist[i]){                                                                                   //give -1 to solution and 1 to alternative solution
+		if(littExist[i]){                                                               //give -1 to solution and 1 to alternative solution
           sol[i] = -1;
           alternativeSol[i] = 1;
           esiste = true;
         }
-        if(littExist[i + nLitt]){                                                                          //give 1 to solution and -1 to alternative solution
+        if(littExist[i + nLitt]){                                                       //give 1 to solution and -1 to alternative solution
           sol[i + nLitt] = 1;
           alternativeSol[i + nLitt] = -1;
           esiste = true;
@@ -310,7 +306,7 @@ int main(int argn, char *args[])  //main
   }while (continua && k > 0);                                                                                         //break the do-while when k = 0 or I have already check all possible solution
 
   ofstream myfile;
-  myfile.open ("solution.txt");                                                                                       //save solution in solution.txt
+  myfile.open ("sol"+nomeFile);                                                                                       //save solution in solution.txt
   for(int ind = 0; ind < nNegPosLit*indexSol; ind++){
     myfile << finalSol[ind]<<" ";
     if(ind%nNegPosLit == (nNegPosLit-1) && ind != 0 && ind != (nNegPosLit*indexSol-1))

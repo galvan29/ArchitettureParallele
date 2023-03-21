@@ -39,7 +39,7 @@ def split_list(a_list):
     half = len(a_list)//2
     return a_list[:half], a_list[half:]
 
-with open("solution.txt") as file:
+with open("sol"+sys.argv[1]) as file:
     lines = [line.rstrip() for line in file]
 
 for ad in lines:
