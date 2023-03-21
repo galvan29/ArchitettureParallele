@@ -58,10 +58,6 @@ __global__ void createConstraints(bool *d_adj_matrix, int nNegPosLit, long int s
 {
   int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
   int thid = 0;
-  /*if(thid2 == 0){
-    printf("Ma quante volte rientro\n");
-  }*/
-
   for (int Pass = 0; Pass < ceilf((sizeAdj / (blockDim.x * gridDim.x))) + 1; Pass++)
   {
     thid = thid2 + Pass * (gridDim.x * blockDim.x);
