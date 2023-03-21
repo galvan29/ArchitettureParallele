@@ -19,6 +19,16 @@ n = numero di letterali
 
 m = numero di vincoli
 
+Per utilizzare il programma su uno specifico input generato si possono utilizzare 2 comandi da console. Dopo la compilazione è sufficiente scrivere:
+```
+!.\main.exe -K=5 -file="v1.txt"       //Windows
+.\main -K=5 -file="v1.txt"            //Linux
+```
+K indica il numero di soluzioni massime da trovare.
+
+file indica il nome del file dei vincoli da utilizzare.
+
+
 ### Controllo delle soluzioni
 ```
 python check.py v5.txt
