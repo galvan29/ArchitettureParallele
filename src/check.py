@@ -5,7 +5,7 @@ def my_function(array):
   valore1 = 0
   valore2 = 0
   i = 0
-  file = open("vincoli.txt","r")
+  file = open(sys.argv[1],"r")
   Lines = file.readlines()
   file.close()
   for line in Lines:
