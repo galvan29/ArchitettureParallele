@@ -79,6 +79,9 @@ __global__ void createConstraints(bool *d_adj_matrix, int nNegPosLit, long int s
             if (d_adj_matrix[i] && ((i % nNegPosLit) + 1) != (primo + 1))
             {    
               d_adj_matrix[pos] = 1;
+              int a = (pos%nNegPosLit)*nNegPosLit;
+              int b = floorf(pos/nNegPosLit);
+              d_adj_matrix[a + b] = 1;
               atomicAdd(&d_status[0], 1.0f); 
             } 
           }

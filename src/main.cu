@@ -246,8 +246,7 @@ int main(int argn, char *args[])  //main
         cudaDeviceSynchronize();
         if(status[0] == 0)                                                                                            //check status of solution completing 
           resumeSolution = false;
-        if(status[1]==1){  
-          cout<<"Non esistono soluzioni da questo caso in poi per questo ramo"<<endl;                                                                                                         //check if there is some conflict
+        if(status[1]==1){                                                                                                         //check if there is some conflict
           break;
         }
       }
