@@ -22,7 +22,7 @@ m = numero di vincoli
 Per utilizzare il programma su uno specifico input generato si possono utilizzare 2 comandi da console (a seconda del OS utilizzato). Dopo la compilazione è sufficiente scrivere:
 ```
 .\main.exe -K=5 -file="v1.txt"       //Windows
-.\main -K=5 -file="v1.txt"            //Linux
+./main -K=5 -file="v1.txt"            //Linux
 ```
 K indica il numero di soluzioni massime da trovare.
 
