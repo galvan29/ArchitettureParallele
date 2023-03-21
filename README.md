@@ -3,11 +3,15 @@
 ## Risoluzione del problema del 2SAT in parallelo.
 
 ### Makefile
+Per compilare il programma è necessario utilizzare il comando
 ```
 make
 ```
+Dopo la compilazione, verrà eseguita in automatico l'esecuzione di 5 esempi differenti.
 
-### Creazine di file per i vincoli
+Tramite dei file python è possibile creare nuovi file in formato DIMACS e fare altre operazioni.
+
+### Creazione di file per i vincoli
 ```
 python create.py v5.txt n m
 ```
