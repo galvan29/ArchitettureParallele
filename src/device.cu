@@ -2,21 +2,32 @@
 #include <iostream>
 #include <cmath>
 #include <fstream>
-#include <bits/stdc++.h>
+#include <sstream>
 #include <numeric>
 #include <cuda.h>
 #include <omp.h>
 #include <malloc.h>
-#include <unistd.h>
 #include <list>
+
 
 using namespace std;
 
-void funcRead(string str[])
+//gestione e cattura errori GPU
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
+void funcRead(string str[], string nomeFile)
 {
   string myText;
   int p = 0;
-  ifstream MyReadFile("vincoli.txt");
+  ifstream MyReadFile(nomeFile);
   while (getline(MyReadFile, myText))
   {
     str[p] = myText;
@@ -25,9 +36,9 @@ void funcRead(string str[])
   MyReadFile.close();
 }
 
-string firstLine()
+string firstLine(string nomeFile)
 {
-  ifstream infile("vincoli.txt");
+  ifstream infile(nomeFile);
   string sLine;
   if (infile.good())
   {
@@ -58,22 +69,23 @@ __global__ void createConstraints(bool *d_adj_matrix, int nNegPosLit, long int s
     if (thid < (sizeAdj))
     {
       if (d_adj_matrix[thid])
-      { // thid = 4
+      { 
         int secondo = (thid % nNegPosLit);
         if (secondo >= (nNegPosLit / 2))
           secondo = secondo - (nNegPosLit / 2);
         else
-          secondo = secondo + (nNegPosLit / 2);                                 // 4
-        int primo = floorf(thid / nNegPosLit); // 0
+          secondo = secondo + (nNegPosLit / 2);                               
+        int primo = floorf(thid / nNegPosLit); 
         for (int i = (secondo * nNegPosLit); i < ((secondo + 1) * nNegPosLit); i++)
-        { // da 24
-          if (d_adj_matrix[i] && ((i % nNegPosLit) + 1) != (primo + 1))
-          { // 24 però 24%6+1 == 1 quindi non entro
-            int status = (primo * nNegPosLit) + (i % nNegPosLit);
-            d_adj_matrix[status] = 1;
-            //d_status[0] = 1;
-            atomicAdd(&d_status[0], 1.0f); 
-          } 
+        { 
+          int pos = (primo * nNegPosLit) + (i % nNegPosLit);
+          if(d_adj_matrix[pos] != 1){
+            if (d_adj_matrix[i] && ((i % nNegPosLit) + 1) != (primo + 1))
+            {    
+              d_adj_matrix[pos] = 1;
+              atomicAdd(&d_status[0], 1.0f); 
+            } 
+          }
         }
       }
     }
