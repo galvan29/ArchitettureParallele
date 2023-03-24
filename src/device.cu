@@ -98,7 +98,6 @@ __global__ void createConstraints(bool *d_adj_matrix, int nNegPosLit, long int s
   __syncthreads();
 }
 
-// LA DIAGONALE NON MI TORNA
 __global__ void checkDiagonal(bool *adj_matrix, int nNegPosLit)
 {
   int thid = blockIdx.x * blockDim.x + threadIdx.x;
