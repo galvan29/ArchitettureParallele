@@ -94,9 +94,9 @@ int main(int argn, char *args[])  //main
         pos1 = tras(stoi(word), nLitt);
         adj_matrix[((pos * nNegPosLit) + pos1)] = 1;    //save the existence of constraints between two litterals 
         adj_matrix[((pos1 * nNegPosLit) + pos)] = 1;
+        littExist[pos] = true;
+        littExist[pos1] = true;
       }
-      littExist[pos] = true;
-      littExist[pos1] = true;
       j++;
     }
   }
