@@ -2,3 +2,4 @@
 2. tanti grafi di esempio sia per le ottimizzazioni che per la spiegazione della soluzione della implementazione.
 3. tempo da 1-2-4-16-26-40 blocchi e da blocchi da 40 con 128 -> 1024 thread.
 4. Inoltre direi di mettere for dovunque per gestire se ho meno thread totali della lunghezza della matrice. Ma già fatto lì, dico in generale.
+5. se ho -1 -1 allora deve avere True, potrei inserirlo.
