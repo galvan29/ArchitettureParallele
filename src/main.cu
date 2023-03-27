@@ -119,7 +119,7 @@ int main(int argn, char *args[])  //main
 
   gpuErrchk(cudaGetLastError());
   //creo nuovi archi
-  int old = 0;
+  int old = INT_MIN;
   do{
     old = status[0];
     status[0] = 0;                                                            //check modifiche
@@ -130,7 +130,7 @@ int main(int argn, char *args[])  //main
     cudaMemcpy(status, d_status, 3 * sizeof(int), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     cout<<"Bro "<<status[0]<<endl;
-  }while(old < status[0]);
+  }while(old <= status[0]);
   
   
   checkDiagonal<<<40, 1024>>>(d_adj_matrix, nNegPosLit);                    //check if the pair of positive and negative is present. If 1 1 and -1 -1 is present, there isn't solution
