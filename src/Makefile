@@ -14,13 +14,12 @@ all: compile run
 compile:
 	nvcc -rdc=true -lineinfo $(run)main.cu -o $(extension)
 	
-run: $(run)$(extension) $(run)v1.txt $(run)v2.txt $(run)v3.txt
+run: $(run)$(extension) $(run)v1.txt $(run)v2.txt $(run)v3.txt $(run)v4.txt $(run)v5.txt
 	$(run)$(extension) -K=4 -file=v1.txt
 	$(run)$(extension) -K=10 -file=v2.txt
 	$(run)$(extension) -K=100 -file=v3.txt
-	$(run)$(extension) -K=200 -file=v4.txt
-	$(run)$(extension) -K=500 -file=v5.txt -b=4 -t=1024
-	
+	$(run)$(extension) -K=100 -file=v4.txt
+	$(run)$(extension) -K=100 -file=v5.txt -b=40 -t=1024
 	
 clean:
 	rm .f main *.o
