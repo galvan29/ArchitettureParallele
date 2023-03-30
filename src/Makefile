@@ -19,7 +19,8 @@ run: $(run)$(extension) $(run)v1.txt $(run)v2.txt $(run)v3.txt
 	$(run)$(extension) -K=10 -file=v2.txt
 	$(run)$(extension) -K=100 -file=v3.txt
 	$(run)$(extension) -K=200 -file=v4.txt
-	$(run)$(extension) -K=500 -file=v5.txt
+	$(run)$(extension) -K=500 -file=v5.txt -b=4 -t=1024
+	
 	
 clean:
 	rm .f main *.o
