@@ -5,7 +5,7 @@ def my_function(array):
   valore1 = 0
   valore2 = 0
   i = 0
-  file = open(sys.argv[1],"r")
+  file = open("vincoli/"+sys.argv[1],"r")
   Lines = file.readlines()
   file.close()
   for line in Lines:
@@ -16,7 +16,7 @@ def my_function(array):
       l = len(array)/2
       if a < 0:
         valore1 = abs(a) + l -1
-      else:
+        else:
         valore1 = a -1
       if b < 0:
         valore2 = abs(b) + l -1
@@ -39,7 +39,7 @@ def split_list(a_list):
     half = len(a_list)//2
     return a_list[:half], a_list[half:]
 
-with open("sol"+sys.argv[1]) as file:
+with open("soluzioni/"+sys.argv[2]) as file:
     lines = [line.rstrip() for line in file]
 
 for ad in lines:

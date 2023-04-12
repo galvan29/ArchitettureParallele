@@ -20,8 +20,27 @@ using namespace std;
 
 int main(int argn, char *args[])  //main
 {
-	int k = 50;  							                                                //number of solutiont o find
-	string nomeFile = "v1.txt";
+	bool arg1 = false;
+	bool arg2 = false;
+	int k = 1;  							                                                //number of solutiont o find
+	string nomeFile = "vincoli/v1.txt";
+	
+	if(argn>1){
+		for(int i=0; i<argn; i++)
+		if(std::string(args[i]).substr(0,3) == "-K="){
+			k = std::stoi(std::string(args[i]).substr(3));
+			arg1=true;
+		}
+		else if(std::string(args[i]).substr(0,6) == "-file="){
+			nomeFile = "vincoli/"+(std::string(args[i]).substr(6));
+			arg2=true;
+		}				
+	}
+	if(!arg1 || !arg2){
+		cout<<"Gli argomenti di input sono errati"<<endl;
+		cout<<"Inserisci -K=n -file='m', con n = num di sol. max e m = file.txt dei vincoli"<<endl;
+		return 0;
+	}
 	
 	string s = firstLine(nomeFile);   //read first line of constraint file
 	string infoFirstLine[4];
@@ -180,7 +199,6 @@ int main(int argn, char *args[])  //main
 				indexSol++;                                                                                                   //index of solution
 			}
 		}
-		cout<<"brod"<<endl;
 		memset(status, 0, 3 * sizeof(int));
 		if (cSol > 0){                                                                     //Set status to 0
 			i = prox[0].back();                                                                                             //I take position i from which the solution must keep going
@@ -193,18 +211,17 @@ int main(int argn, char *args[])  //main
     memset(alreadyVisited, 0, nNegPosLit * sizeof(bool));
 		
 	}while (continua && k > 0);     
-	cout<<"brdadasod"<<endl;
 	auto end2 = std::chrono::steady_clock::now();
 	std::chrono::duration<double> elapseseconds2 = end2-start2;
 	cout << "elapsed time: " << elapseseconds2.count() << "s\n"; 
 	
 	ofstream myfileD;
-	myfileD.open("duration.txt", std::ios_base::app);                                                                                     //save duration in duration.txt
+	myfileD.open("durationCPU.txt", std::ios_base::app);                                                                                     //save duration in duration.txt
 	myfileD  <<indexSol<<";"<<nLitt<<";"<<nConstr<<";"<< elapseseconds.count()<<";"<<elapseseconds2.count() <<"s\n";
 	myfileD.close();                                                                                   //break the do-while when k = 0 or I have already check all possible solution
 	
 	ofstream myfile;
-	myfile.open ("CPUsol"+nomeFile);                                                                                       //save solution in solution.txt
+	myfile.open ("soluzioni/CPUsol"+nomeFile.substr(8));                                                                                       //save solution in solution.txt
 	for(int ind = 0; ind < nNegPosLit*indexSol; ind++){
 		myfile << finalSol[ind]<<" ";
 		if(ind%nNegPosLit == (nNegPosLit-1) && ind != 0 && ind != (nNegPosLit*indexSol-1))

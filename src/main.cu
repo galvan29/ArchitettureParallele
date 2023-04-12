@@ -26,7 +26,7 @@ int main(int argn, char *args[])  //main
 	bool arg1 = false;
 	bool arg2 = false;
 	int k = 1;  							                                                //number of solutiont o find
-	string nomeFile = "v1.txt";
+	string nomeFile = "vincoli/v1.txt";
 	
 	if(argn>1){
 		for(int i=0; i<argn; i++)
@@ -35,7 +35,7 @@ int main(int argn, char *args[])  //main
 			arg1=true;
 		}
 		else if(std::string(args[i]).substr(0,6) == "-file="){
-			nomeFile = (std::string(args[i]).substr(6));
+			nomeFile = "vincoli/"+(std::string(args[i]).substr(6));
 			arg2=true;
 		}
 		else if(std::string(args[i]).substr(0,3) == "-b="){
@@ -298,7 +298,7 @@ int main(int argn, char *args[])  //main
 	myfileD.close();                                                                                   //break the do-while when k = 0 or I have already check all possible solution
 	
 	ofstream myfile;
-	myfile.open ("sol"+nomeFile);                                                                                       //save solution in solution.txt
+	myfile.open ("soluzioni/sol"+nomeFile.substr(8));                                                                                             //save solution in solution.txt
 	for(int ind = 0; ind < nNegPosLit*indexSol; ind++){
 		myfile << finalSol[ind]<<" ";
 		if(ind%nNegPosLit == (nNegPosLit-1) && ind != 0 && ind != (nNegPosLit*indexSol-1))

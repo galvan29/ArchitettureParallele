@@ -1,6 +1,6 @@
 import sys
 
-with open(sys.argv[1]) as file:
+with open("soluzioni/"+sys.argv[1]) as file:
     lines = [line.rstrip() for line in file]
 errorE = False
 for i in lines:
