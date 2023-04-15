@@ -47,7 +47,7 @@ string firstLine(string nomeFile)
 	return sLine;
 }
 
-__global__ void createConstraints(bool *d_adj_matrix, int nNegPosLit, long int sizeAdj, int *d_status)
+__global__ void createConstraints(bool *d_adj_matrix, int nNegPosLit, long int sizeAdj)
 {
 	int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
 	int thid = 0;
@@ -85,7 +85,7 @@ __global__ void createConstraints(bool *d_adj_matrix, int nNegPosLit, long int s
 	__syncthreads();
 }
 
-__global__ void checkDiagonal(bool *adj_matrix, int nNegPosLit, int* d_sol)
+__global__ void checkDiagonal(bool *adj_matrix, int nNegPosLit, int* d_sol, int* d_status)
 {
 	int thid2 = blockIdx.x * blockDim.x + threadIdx.x;
 	int thid = 0;
@@ -99,8 +99,7 @@ __global__ void checkDiagonal(bool *adj_matrix, int nNegPosLit, int* d_sol)
 		{ 
 			thidCheck2 = (nNegPosLit + 1) * (nNegPosLit / 2) + thid;
 			if (adj_matrix[thid] == 1 && adj_matrix[thid] == adj_matrix[thidCheck2]){
-				printf("Nella status %d e nella status %d hanno entrambi 1\n", thid, thidCheck2);
-				printf("Non ci sono soluzioni per il controllo sulla diagonale\n\n");
+				d_status[0] = d_status[0] || 1;
 			}
 			if (adj_matrix[thid] == 1 && adj_matrix[thidCheck2] == 0){
 				d_sol[thid%nNegPosLit] = 1;

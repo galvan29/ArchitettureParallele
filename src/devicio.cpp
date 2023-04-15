@@ -33,7 +33,7 @@ string firstLine(string nomeFile)
 	return sLine;
 }
 
-void createConstraints(bool *adj_matrix, int nNegPosLit, long int sizeAdj, int *status)
+void createConstraints(bool *adj_matrix, int nNegPosLit, long int sizeAdj)
 {
 	for (int cont = 0; cont < sizeAdj; cont++)
 	{
@@ -64,7 +64,7 @@ void createConstraints(bool *adj_matrix, int nNegPosLit, long int sizeAdj, int *
 	}
 }
 
-void checkDiagonal(bool *adj_matrix, int nNegPosLit, int* sol)
+bool checkDiagonal(bool *adj_matrix, int nNegPosLit, int* sol)
 {
 	for (int cont = 0; cont < nNegPosLit; cont++)
 	{
@@ -75,8 +75,7 @@ void checkDiagonal(bool *adj_matrix, int nNegPosLit, int* sol)
 		{ 
 			contCheck2 = (nNegPosLit + 1) * (nNegPosLit / 2) + cont;
 			if (adj_matrix[cont] == 1 && adj_matrix[cont] == adj_matrix[contCheck2]){
-				printf("Nella status %d e nella status %d hanno entrambi 1\n", cont, contCheck2);
-				printf("Non ci sono soluzioni per il controllo sulla diagonale\n\n");
+				return false;
 			}
 			if (adj_matrix[cont] == 1 && adj_matrix[contCheck2] == 0){
 				sol[cont%nNegPosLit] = 1;
@@ -86,6 +85,7 @@ void checkDiagonal(bool *adj_matrix, int nNegPosLit, int* sol)
 			}
 		}
 	}
+	return true;
 }
 
 void checkRow(bool *adj_matrix, int *sol, int nNegPosLit, int *status, bool *alreadyVisited, bool *littExist){

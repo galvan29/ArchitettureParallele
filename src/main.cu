@@ -173,140 +173,145 @@ int main(int argn, char *args[])  //main
 	memset(status, 0, 3 * sizeof(int));                                                               //check modifiche
 	cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);
 	cudaDeviceSynchronize();
-	createConstraints<<<nBlock, nThread>>>(d_adj_matrix, nNegPosLit, sizeAdj, d_status);           //check for same new constraints and for new edge
+	createConstraints<<<nBlock, nThread>>>(d_adj_matrix, nNegPosLit, sizeAdj);           //check for same new constraints and for new edge
 	cudaDeviceSynchronize();
 	
-	checkDiagonal<<<nBlock, nThread>>>(d_adj_matrix, nNegPosLit, d_sol);                    //check if the pair of positive and negative is present. If 1 1 and -1 -1 is present, there isn't solution
+	checkDiagonal<<<nBlock, nThread>>>(d_adj_matrix, nNegPosLit, d_sol, d_status);                    //check if the pair of positive and negative is present. If 1 1 and -1 -1 is present, there isn't solution
 	cudaDeviceSynchronize();
-	
-	auto end = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapsed_seconds = end-start;
-	cout << "elapsed time: " << elapsed_seconds.count() << "s\n"; 
-	
-	gpuErrchk(cudaGetLastError());
-	bool resumeSolution = false; //forse non serve
-	i = 0;
-	bool esiste = false;
-	bool continua = false;
-	auto start2 = std::chrono::steady_clock::now();
-	
-	do{
-		continua = false;
-		cudaMemcpy(d_sol, sol, nNegPosLit * sizeof(int), cudaMemcpyHostToDevice);
-		cudaDeviceSynchronize();
+	cudaMemcpy(status, d_status, 3 * sizeof(int), cudaMemcpyDeviceToHost);
+	if(status[0] == 0){
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> elapsed_seconds = end-start;
+		cout << "elapsed time: " << elapsed_seconds.count() << "s\n"; 
+		
+		gpuErrchk(cudaGetLastError());
+		bool resumeSolution = false; //forse non serve
+		i = 0;
+		bool esiste = false;
+		bool continua = false;
+		auto start2 = std::chrono::steady_clock::now();
+		
 		do{
-			memset(status, 0, 3 * sizeof(int));                                               //set status to 0
-			cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);            //copy to gpu
-			
-			if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                  //start, if two sibling literals both have 0 i.e. no value.
-				memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                            //copy current solution
+			continua = false;
+			cudaMemcpy(d_sol, sol, nNegPosLit * sizeof(int), cudaMemcpyHostToDevice);
+			cudaDeviceSynchronize();
+			do{
+				memset(status, 0, 3 * sizeof(int));                                               //set status to 0
+				cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);            //copy to gpu
 				
-				if(littExist[i]){                                                               //give -1 to solution and 1 to alternative solution
-					sol[i] = -1;
-					alternativeSol[i] = 1;
-					esiste = true;
-				}
-				if(littExist[i + nLitt]){                                                       //give 1 to solution and -1 to alternative solution
-					sol[i + nLitt] = 1;
-					alternativeSol[i + nLitt] = -1;
-					esiste = true;
-				}
-				
-				if(esiste){
-					prox[0].push_back(i);
-					gpuErrchk(cudaMemcpy(d_alternativeSol, alternativeSol, nNegPosLit * sizeof(int), cudaMemcpyHostToDevice));            
+				if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                  //start, if two sibling literals both have 0 i.e. no value.
+					memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                            //copy current solution
 					
-					gpuErrchk(cudaGetLastError());
-					saveNextSol<<<nBlock, nThread>>>(d_solReg, d_alternativeSol, nNegPosLit, cSol);                             //save alternative solution
+					if(littExist[i]){                                                               //give -1 to solution and 1 to alternative solution
+						sol[i] = -1;
+						alternativeSol[i] = 1;
+						esiste = true;
+					}
+					if(littExist[i + nLitt]){                                                       //give 1 to solution and -1 to alternative solution
+						sol[i + nLitt] = 1;
+						alternativeSol[i + nLitt] = -1;
+						esiste = true;
+					}
+					
+					if(esiste){
+						prox[0].push_back(i);
+						gpuErrchk(cudaMemcpy(d_alternativeSol, alternativeSol, nNegPosLit * sizeof(int), cudaMemcpyHostToDevice));            
+						
+						gpuErrchk(cudaGetLastError());
+						saveNextSol<<<nBlock, nThread>>>(d_solReg, d_alternativeSol, nNegPosLit, cSol);                             //save alternative solution
+						cudaDeviceSynchronize();
+						gpuErrchk(cudaGetLastError());
+						cSol++;
+						//printf("\n__%d__\n",cSol);
+						gpuErrchk(cudaMemcpy(d_sol, sol, nNegPosLit * sizeof(int), cudaMemcpyHostToDevice));                                   //copy solution to gpu
+						cudaDeviceSynchronize();
+						resumeSolution = true;   
+						esiste = false;
+					}
+				}
+				if(!resumeSolution){
+					i++;
+				}
+				if(resumeSolution){
+					checkRow<<<nBlock, nThread>>>(d_adj_matrix, d_sol, nNegPosLit, d_status, d_alreadyVisited, d_littExist);             //insert all 1 to litteral connected to litteral with -1
 					cudaDeviceSynchronize();
-					gpuErrchk(cudaGetLastError());
-					cSol++;
-					//printf("\n__%d__\n",cSol);
-					gpuErrchk(cudaMemcpy(d_sol, sol, nNegPosLit * sizeof(int), cudaMemcpyHostToDevice));                                   //copy solution to gpu
+					completeSol<<<nBlock, nThread>>>(d_sol, nNegPosLit, d_littExist);                                                    //if a literal has 1 and its sibling 0, I do -1 and vice versa. In order to complete the solution
 					cudaDeviceSynchronize();
-					resumeSolution = true;   
-					esiste = false;
+					cudaMemcpy(status, d_status, 3 * sizeof(int), cudaMemcpyDeviceToHost);
+					cudaDeviceSynchronize();
+					gpuErrchk(cudaMemcpy(sol, d_sol, nNegPosLit * sizeof(int), cudaMemcpyDeviceToHost));  //Da migliorare
+					cudaDeviceSynchronize();
+					if(status[0] == 0)                                                                                            //check status of solution completing 
+					resumeSolution = false;
+					if(status[1]==1){                                                                                                         //check if there is some conflict
+						break;
+					}
 				}
-			}
-			if(!resumeSolution){
-				i++;
-			}
-			if(resumeSolution){
-				checkRow<<<nBlock, nThread>>>(d_adj_matrix, d_sol, nNegPosLit, d_status, d_alreadyVisited, d_littExist);             //insert all 1 to litteral connected to litteral with -1
-				cudaDeviceSynchronize();
-				completeSol<<<nBlock, nThread>>>(d_sol, nNegPosLit, d_littExist);                                                    //if a literal has 1 and its sibling 0, I do -1 and vice versa. In order to complete the solution
-				cudaDeviceSynchronize();
-				cudaMemcpy(status, d_status, 3 * sizeof(int), cudaMemcpyDeviceToHost);
-				cudaDeviceSynchronize();
-				gpuErrchk(cudaMemcpy(sol, d_sol, nNegPosLit * sizeof(int), cudaMemcpyDeviceToHost));  //Da migliorare
-				cudaDeviceSynchronize();
-				if(status[0] == 0)                                                                                            //check status of solution completing 
-				resumeSolution = false;
-				if(status[1]==1){                                                                                                         //check if there is some conflict
-					break;
-				}
-			}
-		}while(i < nLitt); 
-		
-		if(status[1] == 0){                                                                                               //if there is no conflict
-			gpuErrchk(cudaMemcpy(sol, d_sol, nNegPosLit * sizeof(int), cudaMemcpyDeviceToHost));                                       //TODO non serve perchè viene fatto prima????
-			cudaDeviceSynchronize();
-			if(indexSol > 0){                                               
-				checkNewSol<<<nBlock, nThread>>>(d_sol, d_finalSol, nNegPosLit, indexSol, d_status);                                         //TODO non serve perchè viene fatto prima????
-				cudaDeviceSynchronize();                        //check if the found solution already exists 
-			}
-			if(status[2] == 0 || indexSol == 0){
-				k--;
-				for (int ssif = 0; ssif < nNegPosLit; ssif++)
-				{   
-					finalSol[indexSol * nNegPosLit + ssif] = sol[ssif];                                                       //save new solution
-				}
-				//printf("\n::%d::\n",indexSol * nNegPosLit);
-				indexSol++;                                                                                                   //index of solution
-				cudaMemcpy(d_finalSol, finalSol, (nNegPosLit * k) * sizeof(int), cudaMemcpyHostToDevice);
-				cudaDeviceSynchronize();
-			}
-		}
-		
-		memset(status, 0, 3 * sizeof(int));
-		cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);
-		if (cSol > 0){
-			memset(sol, 0, nNegPosLit * sizeof(int));                                                                       //Set status to 0
-			i = prox[0].back();                                                                                             //I take position i from which the solution must keep going
-			prox[0].pop_back();
-			cSol--;
-			cudaMemcpy(solReg, d_solReg, nNegPosLit * sizeof(int) * (cSol+1), cudaMemcpyDeviceToHost);                      //copies the length of the array I need
+			}while(i < nLitt); 
 			
-			cudaDeviceSynchronize();
-			copyNextSol<<<nBlock, nThread>>>(d_solReg, d_sol, nNegPosLit, cSol);                                            //retrieves the last solution that was saved from the solutions to check.
-			cudaDeviceSynchronize();
-			cudaMemcpy(sol, d_sol, nNegPosLit * sizeof(int), cudaMemcpyDeviceToHost);
+			if(status[1] == 0){                                                                                               //if there is no conflict
+				gpuErrchk(cudaMemcpy(sol, d_sol, nNegPosLit * sizeof(int), cudaMemcpyDeviceToHost));                                       //TODO non serve perchè viene fatto prima????
+				cudaDeviceSynchronize();
+				if(indexSol > 0){                                               
+					checkNewSol<<<nBlock, nThread>>>(d_sol, d_finalSol, nNegPosLit, indexSol, d_status);                                         //TODO non serve perchè viene fatto prima????
+					cudaDeviceSynchronize();                        //check if the found solution already exists 
+				}
+				if(status[2] == 0 || indexSol == 0){
+					k--;
+					for (int ssif = 0; ssif < nNegPosLit; ssif++)
+					{   
+						finalSol[indexSol * nNegPosLit + ssif] = sol[ssif];                                                       //save new solution
+					}
+					//printf("\n::%d::\n",indexSol * nNegPosLit);
+					indexSol++;                                                                                                   //index of solution
+					cudaMemcpy(d_finalSol, finalSol, (nNegPosLit * k) * sizeof(int), cudaMemcpyHostToDevice);
+					cudaDeviceSynchronize();
+				}
+			}
+			
+			memset(status, 0, 3 * sizeof(int));
+			cudaMemcpy(d_status, status, 3 * sizeof(int), cudaMemcpyHostToDevice);
+			if (cSol > 0){
+				memset(sol, 0, nNegPosLit * sizeof(int));                                                                       //Set status to 0
+				i = prox[0].back();                                                                                             //I take position i from which the solution must keep going
+				prox[0].pop_back();
+				cSol--;
+				cudaMemcpy(solReg, d_solReg, nNegPosLit * sizeof(int) * (cSol+1), cudaMemcpyDeviceToHost);                      //copies the length of the array I need
+				
+				cudaDeviceSynchronize();
+				copyNextSol<<<nBlock, nThread>>>(d_solReg, d_sol, nNegPosLit, cSol);                                            //retrieves the last solution that was saved from the solutions to check.
+				cudaDeviceSynchronize();
+				cudaMemcpy(sol, d_sol, nNegPosLit * sizeof(int), cudaMemcpyDeviceToHost);
+				//cudaMemcpy(d_alreadyVisited, alreadyVisited, nNegPosLit * sizeof(bool), cudaMemcpyHostToDevice);
+				resumeSolution = true;
+				continua = true;                                                                                                //there are another solution to check
+			}
+			memset(alreadyVisited, 0, nNegPosLit * sizeof(bool));
 			cudaMemcpy(d_alreadyVisited, alreadyVisited, nNegPosLit * sizeof(bool), cudaMemcpyHostToDevice);
-			resumeSolution = true;
-			continua = true;                                                                                                //there are another solution to check
-		}
+			
+		}while (continua && k > 0);     
 		
-	}while (continua && k > 0);     
-	
-	auto end2 = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapsed_seconds2 = end2-start2;
-	cout << "elapsed time: " << elapsed_seconds2.count() << "s\n"; 
-	//k,nLitt,nConstr,nBLock,nThread,time,timS
-	ofstream myfileD;
-	myfileD.open("duration.txt", std::ios_base::app);                                                                                     //save duration in duration.txt
-	myfileD  <<indexSol<<";"<<nLitt<<";"<<nConstr<<";"<<nBlock<<";"<<nThread<<";"<< elapsed_seconds.count()<<";"<<elapsed_seconds2.count() <<"s\n";
-	myfileD.close();                                                                                   //break the do-while when k = 0 or I have already check all possible solution
-	
-	ofstream myfile;
-	myfile.open ("soluzioni/sol"+nomeFile.substr(8));                                                                                             //save solution in solution.txt
-	for(int ind = 0; ind < nNegPosLit*indexSol; ind++){
-		myfile << finalSol[ind]<<" ";
-		if(ind%nNegPosLit == (nNegPosLit-1) && ind != 0 && ind != (nNegPosLit*indexSol-1))
-		myfile << "\n";
+		auto end2 = std::chrono::steady_clock::now();
+		std::chrono::duration<double> elapsed_seconds2 = end2-start2;
+		cout << "elapsed time: " << elapsed_seconds2.count() << "s\n"; 
+		//k,nLitt,nConstr,nBLock,nThread,time,timS
+		ofstream myfileD;
+		myfileD.open("duration.txt", std::ios_base::app);                                                                                     //save duration in duration.txt
+		myfileD  <<indexSol<<";"<<nLitt<<";"<<nConstr<<";"<<nBlock<<";"<<nThread<<";"<< elapsed_seconds.count()<<";"<<elapsed_seconds2.count() <<"s\n";
+		myfileD.close();                                                                                   //break the do-while when k = 0 or I have already check all possible solution
+		
+		ofstream myfile;
+		myfile.open ("soluzioni/sol"+nomeFile.substr(8));                                                                                             //save solution in solution.txt
+		for(int ind = 0; ind < nNegPosLit*indexSol; ind++){
+			myfile << finalSol[ind]<<" ";
+			if(ind%nNegPosLit == (nNegPosLit-1) && ind != 0 && ind != (nNegPosLit*indexSol-1))
+			myfile << "\n";
+		}
+		myfile.close();
+		cout<<"TERMINATO e k vale ora: "<<k<<" . "; if(k == 0) cout<<"Ci sono tutte le soluzioni che cercavi"<<endl;
+	}else{
+		cout<<"Conflitto tra i vincoli, non ci sono soluzioni"<<endl;
 	}
-	myfile.close();
-	
-	cout<<"TERMINATO e k vale ora: "<<k<<" . "; if(k == 0) cout<<"Ci sono tutte le soluzioni che cercavi"<<endl;
 	cudaFree(d_adj_matrix);
 	cudaFree(d_littExist);
 	cudaFree(d_status);

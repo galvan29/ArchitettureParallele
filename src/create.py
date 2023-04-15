@@ -1,7 +1,13 @@
 from random import randint
 import sys
+import os 
 
-file = open(sys.argv[1],"a")
+path = "vincoli/"
+isExist = os.path.exists(path)
+if not isExist:
+   os.makedirs(path)
+
+file = open("vincoli/"+sys.argv[1],"a")
 file.truncate(0)
 letterali = int(float(sys.argv[2]))
 vincoli = int(float(sys.argv[3]))

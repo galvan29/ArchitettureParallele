@@ -127,109 +127,112 @@ int main(int argn, char *args[])  //main
 	
 	auto start = std::chrono::steady_clock::now();
 	memset(status, 0, 3 * sizeof(int));                                                               //check modifiche
-	createConstraints(adj_matrix, nNegPosLit, sizeAdj, status);           //check for same new constraints and for new edge
+	createConstraints(adj_matrix, nNegPosLit, sizeAdj);           //check for same new constraints and for new edge
 	
-	checkDiagonal(adj_matrix, nNegPosLit, sol);                    //check if the pair of positive and negative is present. If 1 1 and -1 -1 is present, there isn't solution
-	
-	auto end = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapseseconds = end-start;
-	cout << "elapsed time: " << elapseseconds.count() << "s\n"; 
-	
-	bool resumeSolution = false; //forse non serve
-	i = 0;
-	bool esiste = false;
-	bool continua = false;
-	auto start2 = std::chrono::steady_clock::now();
-	
-	do{
-		continua = false;
+	if(checkDiagonal(adj_matrix, nNegPosLit, sol)){                    //check if the pair of positive and negative is present. If 1 1 and -1 -1 is present, there isn't solution
+		//TODO devo farmi ritornare status modificato
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> elapseseconds = end-start;
+		cout << "elapsed time: " << elapseseconds.count() << "s\n"; 
+		
+		bool resumeSolution = false; //forse non serve
+		i = 0;
+		bool esiste = false;
+		bool continua = false;
+		auto start2 = std::chrono::steady_clock::now();
+		
 		do{
-			memset(status, 0, 3 * sizeof(int));                                               //set status to 0
+			continua = false;
+			do{
+				memset(status, 0, 3 * sizeof(int));                                               //set status to 0
+				
+				if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                  //start, if two sibling literals both have 0 i.e. no value.
+					memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                            //copy current solution
+					if(littExist[i]){                                                               //give -1 to solution and 1 to alternative solution
+						sol[i] = -1;
+						alternativeSol[i] = 1;
+						esiste = true;
+					}
+					if(littExist[i + nLitt]){                                                       //give 1 to solution and -1 to alternative solution
+						sol[i + nLitt] = 1;
+						alternativeSol[i + nLitt] = -1;
+						esiste = true;
+					}
+
+					if(esiste){
+						prox[0].push_back(i);
+						saveNextSol(solReg, alternativeSol, nNegPosLit, cSol);                             //save alternative solution
+						cSol++;
+						resumeSolution = true;   
+						esiste = false;
+					}
+				}
+				if(!resumeSolution){
+					i++;
+				}
+				if(resumeSolution){
+
+					checkRow(adj_matrix, sol, nNegPosLit, status, alreadyVisited, littExist);             //insert all 1 to litteral connected to litteral with -1
+
+			completeSol(sol, nNegPosLit, littExist); 
+
+											   //if a literal has 1 and its sibling 0, I do -1 and vice versa. In order to complete the solution
+					if(status[0] == 0){
+			  resumeSolution = false;
+			}                                                                                            //check status of solution completing 
+					if(status[1]==1){                                                                          //check if there is some conflict
+						break;
+					}
+				}
+			}while(i < nLitt); 
 			
-			if(sol[i] == 0 && sol[i+nLitt] == 0 && resumeSolution == false){                  //start, if two sibling literals both have 0 i.e. no value.
-				memcpy(alternativeSol, sol, nNegPosLit*sizeof(int));                            //copy current solution
-				if(littExist[i]){                                                               //give -1 to solution and 1 to alternative solution
-					sol[i] = -1;
-					alternativeSol[i] = 1;
-					esiste = true;
+			if(status[1] == 0){                                                                                               //if there is no conflict
+				if(indexSol > 0){                                               
+					checkNewSol(sol, finalSol, nNegPosLit, indexSol, status);                                         //TODO non serve perchè viene fatto prima????             //check if the found solution already exists 
 				}
-				if(littExist[i + nLitt]){                                                       //give 1 to solution and -1 to alternative solution
-					sol[i + nLitt] = 1;
-					alternativeSol[i + nLitt] = -1;
-					esiste = true;
-				}
-
-				if(esiste){
-					prox[0].push_back(i);
-					saveNextSol(solReg, alternativeSol, nNegPosLit, cSol);                             //save alternative solution
-					cSol++;
-					resumeSolution = true;   
-					esiste = false;
+				if(status[2] == 0 || indexSol == 0){
+					k--;
+					for (int ssif = 0; ssif < nNegPosLit; ssif++)
+					{   
+						finalSol[indexSol * nNegPosLit + ssif] = sol[ssif];                                                       //save new solution
+					}
+					indexSol++;                                                                                                   //index of solution
 				}
 			}
-			if(!resumeSolution){
-				i++;
+			memset(status, 0, 3 * sizeof(int));
+			if (cSol > 0){                                                                     //Set status to 0
+				i = prox[0].back();                                                                                             //I take position i from which the solution must keep going
+				prox[0].pop_back();
+				cSol--;
+				copyNextSol(solReg, sol, nNegPosLit, cSol);                                            //retrieves the last solution that was saved from the solutions to check.
+				resumeSolution = true;
+				continua = true;                                                                                                //there are another solution to check
 			}
-			if(resumeSolution){
-
-				checkRow(adj_matrix, sol, nNegPosLit, status, alreadyVisited, littExist);             //insert all 1 to litteral connected to litteral with -1
-
-        completeSol(sol, nNegPosLit, littExist); 
-
-                                           //if a literal has 1 and its sibling 0, I do -1 and vice versa. In order to complete the solution
-				if(status[0] == 0){
-          resumeSolution = false;
-        }                                                                                            //check status of solution completing 
-				if(status[1]==1){                                                                          //check if there is some conflict
-					break;
-				}
-			}
-		}while(i < nLitt); 
+		memset(alreadyVisited, 0, nNegPosLit * sizeof(bool));
+			
+		}while (continua && k > 0);     
+		auto end2 = std::chrono::steady_clock::now();
+		std::chrono::duration<double> elapseseconds2 = end2-start2;
+		cout << "elapsed time: " << elapseseconds2.count() << "s\n"; 
 		
-		if(status[1] == 0){                                                                                               //if there is no conflict
-			if(indexSol > 0){                                               
-				checkNewSol(sol, finalSol, nNegPosLit, indexSol, status);                                         //TODO non serve perchè viene fatto prima????             //check if the found solution already exists 
-			}
-			if(status[2] == 0 || indexSol == 0){
-				k--;
-				for (int ssif = 0; ssif < nNegPosLit; ssif++)
-				{   
-					finalSol[indexSol * nNegPosLit + ssif] = sol[ssif];                                                       //save new solution
-				}
-				indexSol++;                                                                                                   //index of solution
-			}
-		}
-		memset(status, 0, 3 * sizeof(int));
-		if (cSol > 0){                                                                     //Set status to 0
-			i = prox[0].back();                                                                                             //I take position i from which the solution must keep going
-			prox[0].pop_back();
-			cSol--;
-			copyNextSol(solReg, sol, nNegPosLit, cSol);                                            //retrieves the last solution that was saved from the solutions to check.
-			resumeSolution = true;
-			continua = true;                                                                                                //there are another solution to check
-		}
-    memset(alreadyVisited, 0, nNegPosLit * sizeof(bool));
+		ofstream myfileD;
+		myfileD.open("durationCPU.txt", std::ios_base::app);                                                                                     //save duration in duration.txt
+		myfileD  <<indexSol<<";"<<nLitt<<";"<<nConstr<<";"<< elapseseconds.count()<<";"<<elapseseconds2.count() <<"s\n";
+		myfileD.close();                                                                                   //break the do-while when k = 0 or I have already check all possible solution
 		
-	}while (continua && k > 0);     
-	auto end2 = std::chrono::steady_clock::now();
-	std::chrono::duration<double> elapseseconds2 = end2-start2;
-	cout << "elapsed time: " << elapseseconds2.count() << "s\n"; 
-	
-	ofstream myfileD;
-	myfileD.open("durationCPU.txt", std::ios_base::app);                                                                                     //save duration in duration.txt
-	myfileD  <<indexSol<<";"<<nLitt<<";"<<nConstr<<";"<< elapseseconds.count()<<";"<<elapseseconds2.count() <<"s\n";
-	myfileD.close();                                                                                   //break the do-while when k = 0 or I have already check all possible solution
-	
-	ofstream myfile;
-	myfile.open ("soluzioni/CPUsol"+nomeFile.substr(8));                                                                                       //save solution in solution.txt
-	for(int ind = 0; ind < nNegPosLit*indexSol; ind++){
-		myfile << finalSol[ind]<<" ";
-		if(ind%nNegPosLit == (nNegPosLit-1) && ind != 0 && ind != (nNegPosLit*indexSol-1))
-		myfile << "\n";
+		ofstream myfile;
+		myfile.open ("soluzioni/CPUsol"+nomeFile.substr(8));                                                                                       //save solution in solution.txt
+		for(int ind = 0; ind < nNegPosLit*indexSol; ind++){
+			myfile << finalSol[ind]<<" ";
+			if(ind%nNegPosLit == (nNegPosLit-1) && ind != 0 && ind != (nNegPosLit*indexSol-1))
+			myfile << "\n";
+		}
+		myfile.close();
+		
+		cout<<"TERMINATO e k vale ora: "<<k<<" . "; if(k == 0) cout<<"Ci sono tutte le soluzioni che cercavi"<<endl;
+	}else{
+		cout<<"Conflitto tra i vincoli, non ci sono soluzionii"<<endl;
 	}
-	myfile.close();
-	
-	cout<<"TERMINATO e k vale ora: "<<k<<" . "; if(k == 0) cout<<"Ci sono tutte le soluzioni che cercavi"<<endl;
 	free(adj_matrix);
 	free(littExist);
 	free(sol);
